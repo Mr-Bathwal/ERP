@@ -1,6 +1,6 @@
 # Procurement Policy — ProcureFlow Demo Pvt Ltd
 
-**Version 1.4** · Effective 2026-11-24 · Owner: Head of Supply Chain
+**Version 1.5** · Effective 2026-11-24 · Owner: Head of Supply Chain
 **Applies to:** all indirect and raw-material purchasing routed through ERPNext.
 
 This document is the process. ProcureFlow holds no thresholds in code — the
@@ -188,6 +188,36 @@ item that is **not on the Purchase Order** is `unordered_line` and is held.
 
 ---
 
+## R12 — Approval authority, segregation and integrity
+
+An approval that R1 requires is valid only if all three of these hold:
+
+1. **Authority.** The approver is named in the table below and the order's
+   grand total is within their limit.
+2. **Segregation of duties.** The approver is not the person who raised the
+   request.
+3. **Integrity.** The approval is bound to a digest of the order exactly as
+   the approver saw it: supplier, every line's item, quantity, rate and
+   unit, and the grand total. The order is read back from ERPNext
+   immediately before submission and the digest recomputed. If anything has
+   changed, the approval is void and the order goes back for approval.
+
+| Approver | Name | Role | Approves up to |
+|---|---|---|---|
+| `planning.lead` | R. Iyer | Production Planning Lead | ₹1,00,000 |
+| `proc.manager` | A. Rao | Procurement Manager | ₹2,00,000 |
+| `finance.head` | V. Shah | Head of Finance | ₹5,00,000 |
+
+> **Why integrity is part of approval.** A "yes" is given to a document as it
+> looked at that moment. A draft order can still be edited afterwards — in
+> the ERPNext screen, by another integration, by someone "just correcting
+> the quantity" — and a gate that only records *that* someone approved will
+> submit whatever the order says by then. Binding the approval to what was
+> shown, and checking it against what is about to be submitted, is the same
+> read-back principle the rest of this system applies to its own writes.
+
+---
+
 ## Rule summary
 
 | Rule | Subject | Threshold | Effect when breached |
@@ -203,3 +233,4 @@ item that is **not on the Purchase Order** is `unordered_line` and is held.
 | R9 | Missing receipt | no receipt for invoice | `missing_receipt`, hold |
 | R10 | Run ceiling | > ₹5,00,000 | stop, raise by hand |
 | R11 | Billed vs received | R4 allowance on receipt | `billed_over_received` / `unordered_line`, hold |
+| R12 | Approval validity | authority table, not the requester, digest unchanged | approval refused or voided |

@@ -81,7 +81,7 @@ def test_a_verification_failure_after_approval_is_not_reported_as_an_erp_refusal
 
     erp.fail_next(VerificationError("Purchase Order stored a different supplier"),
                   doctype="Purchase Order", op="submit")
-    s2, _ = agent.resume(s, tr, approved=True, note="ok")
+    s2, _ = agent.resume(s, tr, approved=True, note="ok", approver="proc.manager")
 
     assert s2.state is RunState.NEEDS_HUMAN
     assert s2.reason.startswith("read-back verification failed")
@@ -92,7 +92,7 @@ def test_resume_cites_the_rule_a_refusal_enforces(agent, erp):
     from procureflow.tools import ToolRefused
     s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
     erp.fail_next(ToolRefused("stopped", rule_id="R10"), doctype="Purchase Order", op="submit")
-    s2, _ = agent.resume(s, tr, approved=True)
+    s2, _ = agent.resume(s, tr, approved=True, approver="proc.manager")
     assert s2.state is RunState.BLOCKED
     assert "R10" in s2.rules
 
@@ -278,3 +278,154 @@ def test_the_rest_client_never_resends_a_create_on_its_own():
     with pytest.raises(ERPError):
         c.insert("Material Request", {"items": []})
     assert t.posts == 1
+
+
+# ---------------------------------------------------------------------------
+# R12: authority, segregation of duties, and the integrity of an approval
+# ---------------------------------------------------------------------------
+
+from procureflow import approval as appr  # noqa: E402
+from procureflow.policy_rag import read_numbers, verify_numbers  # noqa: E402
+
+
+def test_the_delegation_of_authority_table_is_read_from_the_policy():
+    n = read_numbers()
+    assert verify_numbers(n) == []
+    assert [(a.approver_id, a.limit_paise) for a in n.approvers] == [
+        ("planning.lead", paise(1_00_000)), ("proc.manager", paise(2_00_000)),
+        ("finance.head", paise(5_00_000))]
+
+
+@pytest.mark.parametrize("approver,requester,value,problem", [
+    ("", None, 7_440_000, "does not name"),
+    ("ceo", None, 7_440_000, "not in the delegation"),
+    ("planning.lead", "R. Iyer", 7_440_000, "segregation of duties"),
+    ("planning.lead", "r iyer", 7_440_000, "segregation of duties"),
+    ("proc.manager", "J. Fernandes", 22_380_000, "exceeds"),
+    ("proc.manager", "R. Iyer", 7_440_000, ""),
+    ("finance.head", "J. Fernandes", 22_380_000, ""),
+])
+def test_an_approval_is_checked_for_authority_and_segregation(approver, requester, value, problem):
+    _, why = appr.check_approval(approver_id=approver, approvers=read_numbers().approvers,
+                                 value_paise=value, requester=requester)
+    assert (problem in why) if problem else why == ""
+
+
+def test_a_refused_approval_leaves_the_order_waiting_not_rejected(agent):
+    s, _ = agent.run(sample("req-short-delivery.txt"), approve=True,
+                     approver="planning.lead", today=TODAY)
+    assert s.state is RunState.AWAITING_APPROVAL
+    assert s.po.docstatus == 0
+    assert any(c["rule_id"] == "R12" and c["decision"] == "approval refused"
+               for c in s.citations)
+
+
+def test_a_valid_approval_is_recorded_with_the_digest_it_was_given_to(agent):
+    s, _ = agent.run(sample("req-over-threshold.txt"), approve=True,
+                     approver="proc.manager", today=TODAY)
+    assert s.state is RunState.COMPLETED
+    accepted = next(c for c in s.citations if c["decision"] == "approval accepted")
+    assert s.approval_digest[:12] in accepted["detail"]
+
+
+def test_an_order_edited_while_awaiting_approval_is_never_submitted(agent, erp):
+    s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
+    seen = s.approval_digest
+    erp.docs["Purchase Order"][s.po.name]["items"][0]["qty"] = 40.0
+    s2, _ = agent.resume(s, tr, approved=True, approver="proc.manager")
+    assert s2.state is RunState.BLOCKED
+    assert "LUB-HYD-68 quantity 4 became 40" in s2.reason
+    assert erp.docs["Purchase Order"][s.po.name]["docstatus"] == 0
+    assert s2.approval_digest == seen, "a resume must not re-snapshot the order"
+
+
+def test_a_supplier_swap_after_approval_is_caught_too(agent, erp):
+    s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
+    erp.docs["Purchase Order"][s.po.name]["supplier"] = "Kaveri Polymers Ltd"
+    s2, _ = agent.resume(s, tr, approved=True, approver="proc.manager")
+    assert s2.state is RunState.BLOCKED
+    assert "supplier" in s2.reason
+
+
+def test_an_auto_approved_order_is_also_checked_before_submission(erp, policy):
+    """No person approved it; the policy did. The guarantee is the same."""
+
+    class EditAfterGate(Agent):
+        def n_approval_gate(self, s, tr):
+            s = super().n_approval_gate(s, tr)
+            erp.docs["Purchase Order"][s.po.name]["items"][0]["rate"] = 99.0
+            return s
+
+    s, _ = EditAfterGate(erp, policy=policy).run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.BLOCKED
+    assert "rate" in s.reason
+
+
+def test_the_snapshot_ignores_line_order_but_not_content():
+    from procureflow.erp.client import Doc
+    a = Doc("PO", "P", {"name": "P", "supplier": "S", "grand_total": 10, "items": [
+        {"item_code": "A", "qty": 1, "rate": 5}, {"item_code": "B", "qty": 1.0, "rate": 5}]})
+    b = Doc("PO", "P", {"name": "P", "supplier": "S", "grand_total": 10, "items": [
+        {"item_code": "B", "qty": 1, "rate": 5.00}, {"item_code": "A", "qty": 1, "rate": 5}]})
+    assert appr.digest(appr.snapshot(a)) == appr.digest(appr.snapshot(b))
+    b.data["items"][0]["qty"] = 2
+    assert appr.digest(appr.snapshot(a)) != appr.digest(appr.snapshot(b))
+
+
+@pytest.mark.parametrize("name,who", [
+    ("req-happy.txt", "R. Iyer"), ("req-messy-typos.txt", "p. deshmukh"),
+    ("req-ceiling-breach.txt", None),
+])
+def test_the_requester_is_read_from_the_sign_off(name, who):
+    from procureflow.extract import extract
+    assert extract(sample(name)).request.requester == who
+
+
+# ---------------------------------------------------------------------------
+# A paused run on disk is signed; an edited one is refused before unpickling
+# ---------------------------------------------------------------------------
+
+
+def test_a_paused_run_round_trips_through_the_signed_store(tmp_path, monkeypatch):
+    from procureflow import state_store
+    monkeypatch.delenv("PF_STATE_KEY", raising=False)
+    state_store.save("r1", {"order": "PUR-ORD-2026-00001", "value": 7460000}, folder=tmp_path)
+    assert state_store.load("r1", folder=tmp_path)["value"] == 7460000
+
+
+def test_an_edited_paused_run_is_refused_before_it_is_unpickled(tmp_path, monkeypatch):
+    from procureflow import state_store
+    monkeypatch.delenv("PF_STATE_KEY", raising=False)
+    path = state_store.save("r1", {"value": 7460000}, folder=tmp_path)
+    raw = bytearray(path.read_bytes())
+    raw[-3] ^= 0x01                                   # one bit, anywhere in the body
+    path.write_bytes(bytes(raw))
+    with pytest.raises(state_store.StateTampered):
+        state_store.load("r1", folder=tmp_path)
+
+
+def test_an_unsigned_pickle_is_refused_outright(tmp_path):
+    import pickle
+
+    from procureflow import state_store
+    (tmp_path / "r1.pkl").write_bytes(pickle.dumps({"value": 1}))
+    with pytest.raises(state_store.StateTampered):
+        state_store.load("r1", folder=tmp_path)
+
+
+def test_the_cli_pauses_refuses_a_bad_approver_and_accepts_a_good_one(tmp_path, monkeypatch):
+    """Two processes in spirit: run, then approve -- through the real CLI."""
+    from procureflow import cli, state_store
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(state_store, "PAUSED", tmp_path / "paused")
+    monkeypatch.setattr(cli.settings, "trace_db", str(tmp_path / "t.sqlite"))
+    for fn in ("save", "load", "exists", "discard"):
+        orig = getattr(state_store, fn)
+        monkeypatch.setattr(state_store, fn,
+                            lambda *a, _o=orig, **k: _o(*a, folder=tmp_path / "paused", **k))
+    assert cli.main(["run", sample("req-over-threshold.txt")]) == 0
+    run_id = next((tmp_path / "paused").glob("*.pkl")).stem
+    assert cli.main(["approve", run_id, "--as", "intern"]) == 1
+    assert state_store.exists(run_id), "a refused approval must leave the run waiting"
+    assert cli.main(["approve", run_id, "--as", "proc.manager", "--note", "ok"]) == 0
+    assert not state_store.exists(run_id)

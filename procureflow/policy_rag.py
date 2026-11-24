@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .approval import Approver, parse_authority
+
 POLICY_PATH = Path(__file__).resolve().parent.parent / "policy" / "procurement_policy.md"
 
 # Controls that apply whether or not the vector store surfaces them. See the
@@ -182,6 +184,7 @@ class PolicyNumbers:
     expedite_days: int = 2
     run_ceiling_paise: int = 5_00_000 * 100
     preferred: tuple[str, ...] = field(default_factory=tuple)
+    approvers: tuple[Approver, ...] = field(default_factory=tuple)
     source: str = "policy/procurement_policy.md"
 
 
@@ -232,6 +235,9 @@ def read_numbers(rules: list[Rule] | None = None) -> PolicyNumbers:
 
     if (r2 := by_id.get("R2")):
         n.preferred = _preferred_from(r2.text)
+
+    if (r12 := by_id.get("R12")):
+        n.approvers = parse_authority(r12.text)
 
     return n
 
@@ -286,4 +292,9 @@ def verify_numbers(n: PolicyNumbers) -> list[str]:
     for name in n.preferred:
         if "\n" in name or len(name.split()) < 2 or not _COMPANY_SUFFIX.search(name):
             bad.append(f"R2 preferred supplier {name!r} does not look like a company name")
+    if not n.approvers:
+        bad.append("R12 delegation-of-authority table did not parse")
+    elif max(a.limit_paise for a in n.approvers) < n.run_ceiling_paise:
+        # Otherwise an order R10 allows could need an approval nobody can give.
+        bad.append("R12: no approver's authority reaches the R10 run ceiling")
     return bad

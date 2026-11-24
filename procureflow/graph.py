@@ -35,6 +35,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from . import approval
 from .config import PurchaseRequest, RunContext, RunState
 from .erp.client import Doc, ERPError, VerificationError
 from .extract import Catalogue, extract, resolve_items
@@ -102,6 +103,9 @@ class State:
     needs_approval: bool = False
     approved: bool | None = None
     approver_note: str = ""
+    approver: str = ""                       # R12: who said yes, by approver id
+    approval_snapshot: dict[str, Any] = field(default_factory=dict)
+    approval_digest: str = ""                # R12: what they said yes *to*
     expedite: bool = False
     substitution: str = ""
 
@@ -291,8 +295,17 @@ class Agent:
         return s
 
     def n_approval_gate(self, s: State, tr: Tracer) -> State:
-        """The one place the machine stops and waits for a person."""
+        """The one place the machine stops and waits for a person.
+
+        The snapshot is taken the first time the gate sees the order and
+        never again: a resume must not re-snapshot the order as it is *now*,
+        or an edit made while the run was paused would be laundered into the
+        approval.
+        """
         with tr.step("approval_gate") as st:
+            if s.po is not None and not s.approval_digest:
+                s.approval_snapshot = approval.snapshot(s.po)
+                s.approval_digest = approval.digest(s.approval_snapshot)
             if not s.needs_approval:
                 s.approved = True
                 st.outcome = "auto"
@@ -302,22 +315,63 @@ class Agent:
             if s.approved is None:
                 s.state = RunState.AWAITING_APPROVAL
                 s.reason = (f"Purchase Order {s.po.name if s.po else ''} for "
-                            f"{rupees(s.po_value_paise)} needs approval (R1)")
+                            f"{rupees(s.po_value_paise)} needs approval (R1); "
+                            f"order digest {s.approval_digest[:12]}")
                 st.outcome, st.detail, st.rules_cited = "paused", s.reason, ["R1"]
                 return s
-            st.outcome = "approved" if s.approved else "rejected"
-            st.detail = s.approver_note or st.outcome
-            st.rules_cited = ["R1"]
+            if s.approved is False:
+                st.outcome, st.detail, st.rules_cited = "rejected", s.approver_note or "rejected", ["R1"]
+                return s
+
+            value = max(s.po_value_paise, s.approval_snapshot.get("grand_total_paise", 0))
+            who, problem = approval.check_approval(
+                approver_id=s.approver, approvers=self.numbers.approvers,
+                value_paise=value, requester=s.request.requester if s.request else None)
+            if problem:
+                # Not a rejection: the order is still waiting for a valid "yes".
+                s.approved = None
+                s.state = RunState.AWAITING_APPROVAL
+                s.reason = f"approval not accepted: {problem}"
+                s.cite("R12", "approval refused", problem)
+                st.outcome, st.detail, st.rules_cited = "refused", s.reason, ["R1", "R12"]
+                return s
+            s.cite("R12", "approval accepted",
+                   f"{who.name}, {who.role} (up to {rupees(who.limit_paise)}); "
+                   f"order digest {s.approval_digest[:12]}")
+            st.outcome = "approved"
+            st.detail = f"{who.approver_id}: {s.approver_note or 'approved'}"
+            st.rules_cited = ["R1", "R12"]
         return s
 
     def n_submit_purchase_order(self, s: State, tr: Tracer) -> State:
-        """Submit. Unreachable except through the gate — asserted by a test."""
+        """Submit. Unreachable except through the gate — asserted by a test.
+
+        Immediately before submitting, the order is read back from the ERP
+        and compared with what the gate recorded (R12). This runs for
+        auto-approved orders too: the guarantee is that what is submitted
+        is what the policy decision was made about, whoever made it.
+        """
         with tr.step("submit_purchase_order") as st:
             if s.approved is not True:
                 s.state = RunState.FAILED
                 s.reason = "submit was reached without approval"
                 st.outcome, st.detail = "refused", s.reason
                 return s
+            if not s.ctx.dry_run and s.approval_digest:
+                current = self.erp.get_doc("Purchase Order", s.po.name)
+                snap = approval.snapshot(current)
+                st.tool_calls.append({"kind": "erp", "name": "verify_approved_order",
+                                      "args": {"po": s.po.name},
+                                      "result": "digest " + approval.digest(snap)[:12]})
+                if approval.digest(snap) != s.approval_digest:
+                    change = approval.describe_change(s.approval_snapshot, snap)
+                    s.state = RunState.BLOCKED
+                    s.reason = (f"Purchase Order {s.po.name} changed after it was approved "
+                                f"({change}); the approval is void and the order needs "
+                                "approval again")
+                    s.cite("R12", "approval voided", change)
+                    st.outcome, st.detail, st.rules_cited = "refused", s.reason, ["R12"]
+                    return s
             po, call = submit_doc(self.erp, s.ctx, "Purchase Order", s.po.name)
             st.tool_calls.append({"kind": "erp", **call.__dict__})
             s.po = po if po.items else s.po
@@ -414,12 +468,14 @@ class Agent:
     def run(self, source: str | Path, *, scenario: str = "", dry_run: bool = False,
             receipt_mode: Literal["api", "computer_use"] = "api",
             plan: RunPlan | None = None, approve: bool | None = None,
-            today: date | None = None) -> tuple[State, Tracer]:
+            approver: str = "", today: date | None = None) -> tuple[State, Tracer]:
         """Execute the flow start to finish, or until it stops on purpose.
 
         `approve` pre-seeds the gate's answer so the eval can drive both
-        sides of it in one process. A real run leaves it None, stops at
-        `awaiting_approval`, and is resumed with `resume()`.
+        sides of it in one process, and `approver` says who gave it -- R12
+        applies to a pre-seeded answer exactly as to a live one. A real run
+        leaves both empty, stops at `awaiting_approval`, and is resumed with
+        `resume()`.
         """
         s = State(
             source=str(source), scenario=scenario, plan=plan or RunPlan(),
@@ -427,6 +483,7 @@ class Agent:
                            receipt_mode=receipt_mode, today=today or date.today()),
         )
         s.approved = approve
+        s.approver = approver
         tr = Tracer(self.trace_db, run_id=s.ctx.run_id, source_file=str(source),
                     scenario=scenario, dry_run=dry_run, receipt_mode=receipt_mode)
         return self._drive(s, tr)
@@ -485,9 +542,14 @@ class Agent:
         return s, tr
 
     def resume(self, s: State, tr: Tracer, *, approved: bool,
-               note: str = "") -> tuple[State, Tracer]:
-        """Continue a run that stopped at the gate."""
+               note: str = "", approver: str = "") -> tuple[State, Tracer]:
+        """Continue a run that stopped at the gate.
+
+        An approval that R12 does not accept leaves the run where it was,
+        `awaiting_approval`, so a valid approver can still give it.
+        """
         s.approved = approved
+        s.approver = approver
         s.approver_note = note
         s.state = RunState.RUNNING     # re-established by the nodes below
         s.reason = ""
@@ -547,16 +609,22 @@ def build(agent: Agent) -> Any:
 
     def gate(payload: dict) -> dict:
         s: State = payload["s"]
+        if s.po is not None and not s.approval_digest:
+            s.approval_snapshot = approval.snapshot(s.po)
+            s.approval_digest = approval.digest(s.approval_snapshot)
         if s.needs_approval and s.approved is None:
             decision = interrupt({
                 "run_id": s.ctx.run_id,
                 "purchase_order": s.po.name if s.po else "",
                 "value": rupees(s.po_value_paise),
                 "supplier": s.request.supplier if s.request else "",
+                "order_digest": s.approval_digest,
                 "citations": s.citations,
             })
-            s.approved = bool(decision.get("approved")) if isinstance(decision, dict) else bool(decision)
-            s.approver_note = (decision or {}).get("note", "") if isinstance(decision, dict) else ""
+            is_dict = isinstance(decision, dict)
+            s.approved = bool(decision.get("approved")) if is_dict else bool(decision)
+            s.approver_note = decision.get("note", "") if is_dict else ""
+            s.approver = decision.get("approver", "") if is_dict else ""
         else:
             s.approved = True if s.approved is None else s.approved
         payload["s"] = agent.n_approval_gate(s, payload["tr"])

@@ -6,6 +6,7 @@ why: >
   matches the order and the receipt matches the order: only the third leg,
   invoice against receipt, sees it.
 approve: true   # Rs74,400 is over the R1 ceiling
+approver: proc.manager   # R12: Procurement Manager, up to Rs2,00,000
 plan:
   invoice_qty: {STL-ROD-20: 70}
 expect:

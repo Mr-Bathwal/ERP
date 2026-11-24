@@ -2,6 +2,7 @@ name: multi_item_pdf_quote
 input: seed/samples/quote-deccan-multi.pdf
 why: A real PDF table, which pypdf flattens to one cell per line.
 approve: true
+approver: proc.manager   # R12: Procurement Manager, up to Rs2,00,000
 expect:
   state: completed
   items_resolved: 3

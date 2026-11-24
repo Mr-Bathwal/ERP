@@ -16,18 +16,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import pickle
 import sys
 from pathlib import Path
 
+from . import state_store
 from .config import RunState, settings
 from .erp.fake import demo_company
 from .graph import Agent, RunPlan
 from .match import rupees
 from .policy_rag import PolicyIndex
 from .tools import describe_permissions
-
-PAUSED = Path("eval/results/paused")
 
 
 def _erp(live: bool):
@@ -74,10 +72,9 @@ def cmd_run(a: argparse.Namespace) -> int:
     plan = RunPlan(supplier_invoice_no=a.bill_no or "")
     s, tr = agent.run(a.file, scenario=a.scenario, dry_run=a.dry_run,
                       receipt_mode=a.mode, plan=plan,
-                      approve=True if a.yes else None)
+                      approve=True if a.yes else None, approver=a.approver)
     _show(s, tr)
     if s.state is RunState.AWAITING_APPROVAL:
-        PAUSED.mkdir(parents=True, exist_ok=True)
         # Against a real ERPNext the draft order is on the server and
         # resuming only needs the run state. The fake keeps its documents in
         # memory, so without persisting it too the second process would find
@@ -85,25 +82,33 @@ def cmd_run(a: argparse.Namespace) -> int:
         # broken in the mode most people try first. The fake is plain data
         # and pickles; a live client holds a socket and does not.
         erp_state = None if a.live else agent.erp
-        (PAUSED / f"{tr.run_id}.pkl").write_bytes(
-            pickle.dumps((s, tr, a.live, erp_state)))
-        print(f"  paused for approval. Resume with:\n"
-              f"      procureflow approve {tr.run_id}\n"
+        state_store.save(tr.run_id, (s, tr, a.live, erp_state))
+        print(f"  paused for approval. Order digest {s.approval_digest[:12]}. Resume with:\n"
+              f"      procureflow approve {tr.run_id} --as <approver id>\n"
               f"      procureflow approve {tr.run_id} --reject\n")
     return 0 if s.state not in (RunState.FAILED,) else 1
 
 
 def cmd_approve(a: argparse.Namespace) -> int:
-    path = PAUSED / f"{a.run_id}.pkl"
-    if not path.exists():
+    if not state_store.exists(a.run_id):
         print(f"no paused run {a.run_id}", file=sys.stderr)
         return 2
-    s, tr, live, erp_state = pickle.loads(path.read_bytes())
+    try:
+        s, tr, live, erp_state = state_store.load(a.run_id)
+    except state_store.StateTampered as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return 3
     erp = _erp(live) if (live or erp_state is None) else erp_state
     agent = Agent(erp, policy=PolicyIndex(), trace_db=settings.trace_db)
-    s2, tr2 = agent.resume(s, tr, approved=not a.reject, note=a.note or "")
+    s2, tr2 = agent.resume(s, tr, approved=not a.reject, note=a.note or "",
+                           approver=a.approver or "")
     _show(s2, tr2)
-    path.unlink()
+    if s2.state is RunState.AWAITING_APPROVAL:
+        # R12 did not accept this approval; the run is still waiting for a
+        # valid one, so it stays on disk, re-signed with the refusal recorded.
+        state_store.save(tr2.run_id, (s2, tr2, live, None if live else agent.erp))
+        return 1
+    state_store.discard(a.run_id)
     return 0
 
 
@@ -146,6 +151,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--live", action="store_true", help="use the real ERPNext")
     r.add_argument("--dry-run", action="store_true", help="write nothing")
     r.add_argument("--yes", action="store_true", help="pre-approve the gate")
+    r.add_argument("--as", dest="approver", default="",
+                   help="with --yes: the approver id giving that approval (R12)")
     r.add_argument("--mode", choices=["api", "computer_use"], default="api")
     r.add_argument("--bill-no", default="", help="supplier invoice number")
     r.add_argument("--scenario", default="")
@@ -154,6 +161,8 @@ def main(argv: list[str] | None = None) -> int:
     ap_ = sub.add_parser("approve", help="resume a run paused at the gate")
     ap_.add_argument("run_id")
     ap_.add_argument("--reject", action="store_true")
+    ap_.add_argument("--as", dest="approver", default="",
+                     help="approver id from the R12 delegation-of-authority table")
     ap_.add_argument("--note", default="")
     ap_.set_defaults(fn=cmd_approve)
 

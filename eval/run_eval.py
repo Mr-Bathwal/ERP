@@ -237,12 +237,31 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
                            "supplier_invoice_no": sc.get("first_bill_no")
                            or plan.supplier_invoice_no})
         agent.run(sc["input"], scenario=sc["name"] + "/first", plan=first,
-                  approve=True, today=TODAY)
+                  approve=True, approver=sc.get("approver", ""), today=TODAY)
 
     t0 = time.perf_counter()
     s, tr = agent.run(sc["input"], scenario=sc["name"], plan=plan,
                       dry_run=bool(sc.get("dry_run")),
-                      approve=sc.get("approve"), today=TODAY)
+                      approve=sc.get("approve"), approver=sc.get("approver", ""),
+                      today=TODAY)
+
+    # Two-process approval, in one process: the run pauses, the world may
+    # change while it waits (`tamper`, applied straight to the stored draft
+    # order, the way an edit in the ERPNext screen would be), then a decision
+    # arrives through `resume()` exactly as the CLI and the API deliver it.
+    if (then := sc.get("pause_then")) and s.state.value == "awaiting_approval":
+        tamper = then.get("tamper") or {}
+        if tamper and not live and s.po is not None:
+            row = erp.docs["Purchase Order"][s.po.name]
+            if "supplier" in tamper:
+                row["supplier"] = tamper["supplier"]
+            for it in row.get("items") or []:
+                if it.get("item_code") in (tamper.get("qty") or {}):
+                    it["qty"] = float(tamper["qty"][it["item_code"]])
+                if it.get("item_code") in (tamper.get("rate") or {}):
+                    it["rate"] = float(tamper["rate"][it["item_code"]])
+        s, tr = agent.resume(s, tr, approved=bool(then.get("approve", True)),
+                             note=then.get("note", ""), approver=then.get("approver", ""))
     wall = int((time.perf_counter() - t0) * 1000)
 
     writes = _writes(erp) if not live else -1

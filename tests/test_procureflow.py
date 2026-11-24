@@ -561,7 +561,8 @@ def test_a_rejected_approval_never_submits(agent):
 
 
 def test_an_approved_order_submits_and_completes(agent):
-    s, _ = agent.run(sample("req-over-threshold.txt"), approve=True, today=TODAY)
+    s, _ = agent.run(sample("req-over-threshold.txt"), approve=True,
+                     approver="proc.manager", today=TODAY)
     assert s.state is RunState.COMPLETED
     assert s.po.docstatus == 1
 
@@ -569,7 +570,8 @@ def test_an_approved_order_submits_and_completes(agent):
 def test_resuming_a_paused_run_submits_it(agent):
     s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
     assert s.state is RunState.AWAITING_APPROVAL
-    s2, _ = agent.resume(s, tr, approved=True, note="ok, line 2 changeover")
+    s2, _ = agent.resume(s, tr, approved=True, note="ok, line 2 changeover",
+                          approver="proc.manager")
     assert s2.state is RunState.COMPLETED
     assert s2.po.docstatus == 1
 
@@ -584,7 +586,8 @@ def test_an_unknown_supplier_escalates_and_writes_nothing(agent, erp):
 
 def test_the_run_ceiling_cannot_be_approved_away(agent):
     """R10 bounds what a defect can do; approval does not waive it."""
-    s, _ = agent.run(sample("req-ceiling-breach.txt"), approve=True, today=TODAY)
+    s, _ = agent.run(sample("req-ceiling-breach.txt"), approve=True,
+                     approver="finance.head", today=TODAY)
     assert s.state is RunState.BLOCKED
     assert "R10" in s.rules
     assert s.po is None

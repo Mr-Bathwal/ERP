@@ -1,0 +1,15 @@
+name: approval_by_requester_refused
+input: seed/samples/req-short-delivery.txt
+category: authority
+why: >
+  R. Iyer raised the request and, as Production Planning Lead, holds
+  authority for Rs74,400. The approval is still refused: requester and
+  approver may not be the same person (R12, segregation of duties). The run
+  keeps waiting for someone else rather than being rejected.
+approve: true
+approver: planning.lead
+expect:
+  state: awaiting_approval
+  rules_cited: [R12]
+  not_submitted: true
+  reason_contains: segregation of duties

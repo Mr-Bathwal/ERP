@@ -2,6 +2,7 @@ name: happy_over_threshold
 input: seed/samples/req-over-threshold.txt
 why: Above the R1 ceiling. Must pause, and must complete once approved.
 approve: true
+approver: proc.manager   # R12: Procurement Manager, up to Rs2,00,000
 expect:
   state: completed
   approval_required: true

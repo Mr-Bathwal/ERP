@@ -61,6 +61,21 @@ EMAILS: dict[str, str] = {
         Maintenance
         """,
 
+    # R12: Rs2,23,800 is inside R10 but above the Procurement Manager's
+    # Rs2,00,000 authority, so only the Head of Finance may approve it.
+    "req-authority-limit": """\
+        Subject: Hydraulic oil - annual top-up for the press shop
+
+        Please raise an order on Deccan Steel & Alloys.
+
+        - 12 nos Hydraulic oil ISO VG68 210L @ 18650.00
+
+        Needed by 2027-01-05.
+
+        J. Fernandes
+        Press Shop
+        """,
+
     "req-messy-typos": """\
         Subject: urgent plz
 

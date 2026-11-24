@@ -158,6 +158,20 @@ _SUFFIXES = ("Private Limited", "Pvt. Ltd.", "Pvt Ltd.", "Pvt. Ltd", "Pvt Ltd",
              "Electricals", "Lubricants", "Fasteners", "Industries", "Enterprises")
 
 
+# "R. Iyer", "p. deshmukh", "A. K. Menon" on a line of their own: the sign-off.
+# The last one in the message is the requester -- R12's segregation-of-duties
+# check compares it with the approver, so it must not be guessed from a
+# name mentioned in passing ("raise an order on Deccan ...").
+_SIGNOFF = re.compile(
+    r"^[ \t]*(?P<name>[A-Z]\.(?:[ \t]?[A-Z]\.)*[ \t]?[A-Z][A-Za-z'\-]{1,30})[ \t]*$",
+    re.MULTILINE | re.IGNORECASE)
+
+
+def _requester(text: str) -> str | None:
+    found = list(_SIGNOFF.finditer(text))
+    return found[-1]["name"].strip() if found else None
+
+
 def _trim_supplier(span: str) -> str | None:
     """Cut a candidate span at the end of the longest company suffix in it.
 
@@ -299,6 +313,9 @@ def heuristic_extract(text: str, *, source_file: str = "", kind: str = "email") 
 
     if (m := _INV_NO.search(text)):
         req.supplier_invoice_no = m.group(1).strip()
+
+    if kind != "pdf":
+        req.requester = _requester(text)
 
     # A PDF table is emitted by pypdf one *cell* per line, so it is walked
     # as a cell sequence rather than matched as rows. Where that succeeds it

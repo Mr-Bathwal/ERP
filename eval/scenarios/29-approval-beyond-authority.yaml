@@ -1,0 +1,13 @@
+name: approval_beyond_authority_refused
+input: seed/samples/req-authority-limit.txt
+category: authority
+why: >
+  Rs2,23,800 is inside the R10 ceiling but above the Procurement Manager's
+  Rs2,00,000 authority. A yes from them is not an approval.
+approve: true
+approver: proc.manager
+expect:
+  state: awaiting_approval
+  rules_cited: [R12]
+  not_submitted: true
+  reason_contains: exceeds

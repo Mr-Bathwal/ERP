@@ -10,7 +10,6 @@ when it is run live, and from the exported JSON when it is served statically.
 
 from __future__ import annotations
 
-import pickle
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from . import state_store
 from .config import RunState, settings
 from .erp.fake import demo_company
 from .graph import Agent, RunPlan
@@ -29,7 +29,6 @@ app = FastAPI(title="ProcureFlow", docs_url="/docs", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
 
-PAUSED = Path("eval/results/paused")
 _POLICY: PolicyIndex | None = None
 _RUNS: dict[str, dict[str, Any]] = {}
 
@@ -57,10 +56,14 @@ class RunRequest(BaseModel):
     receipt_mode: str = "api"
     supplier_invoice_no: str = ""
     auto_approve: bool = False
+    approver: str = ""            # with auto_approve: who is giving it (R12)
 
 
 class Decision(BaseModel):
     note: str = ""
+    # The approver id from R12's table. Asserted by the caller here; in a
+    # deployment it comes from the authenticated session, never the body.
+    approver: str = ""
 
 
 def _view(s: Any, tr: Any) -> dict[str, Any]:
@@ -72,6 +75,8 @@ def _view(s: Any, tr: Any) -> dict[str, Any]:
         "value": rupees(s.po_value_paise) if s.po_value_paise else None,
         "needs_approval": s.needs_approval,
         "approved": s.approved,
+        "approver": s.approver or None,
+        "order_digest": s.approval_digest or None,
         "expedite": s.expedite,
         "extract_method": s.extract_method,
         "documents": {
@@ -118,13 +123,11 @@ def start_run(req: RunRequest) -> dict[str, Any]:
     agent = Agent(erp, policy=policy(), trace_db=settings.trace_db)
     s, tr = agent.run(req.file, dry_run=req.dry_run, receipt_mode=req.receipt_mode,
                       plan=RunPlan(supplier_invoice_no=req.supplier_invoice_no),
-                      approve=True if req.auto_approve else None)
+                      approve=True if req.auto_approve else None, approver=req.approver)
     view = _view(s, tr)
     _RUNS[tr.run_id] = view
     if s.state is RunState.AWAITING_APPROVAL:
-        PAUSED.mkdir(parents=True, exist_ok=True)
-        (PAUSED / f"{tr.run_id}.pkl").write_bytes(
-            pickle.dumps((s, tr, req.live, None if req.live else erp)))
+        state_store.save(tr.run_id, (s, tr, req.live, None if req.live else erp))
     return view
 
 
@@ -140,15 +143,20 @@ def get_run(run_id: str) -> dict[str, Any]:
     return _RUNS[run_id]
 
 
-def _resume(run_id: str, approved: bool, note: str) -> dict[str, Any]:
-    path = PAUSED / f"{run_id}.pkl"
-    if not path.exists():
+def _resume(run_id: str, approved: bool, note: str, approver: str) -> dict[str, Any]:
+    if not state_store.exists(run_id):
         raise HTTPException(404, "no run is waiting for a decision under that id")
-    s, tr, live, erp_state = pickle.loads(path.read_bytes())
+    try:
+        s, tr, live, erp_state = state_store.load(run_id)
+    except state_store.StateTampered as e:
+        raise HTTPException(409, str(e)) from e
     erp = _erp(live) if (live or erp_state is None) else erp_state
     agent = Agent(erp, policy=policy(), trace_db=settings.trace_db)
-    s2, tr2 = agent.resume(s, tr, approved=approved, note=note)
-    path.unlink()
+    s2, tr2 = agent.resume(s, tr, approved=approved, note=note, approver=approver)
+    if s2.state is RunState.AWAITING_APPROVAL:
+        state_store.save(run_id, (s2, tr2, live, None if live else erp))
+    else:
+        state_store.discard(run_id)
     view = _view(s2, tr2)
     _RUNS[tr2.run_id] = view
     return view
@@ -156,12 +164,12 @@ def _resume(run_id: str, approved: bool, note: str) -> dict[str, Any]:
 
 @app.post("/runs/{run_id}/approve")
 def approve(run_id: str, d: Decision) -> dict[str, Any]:
-    return _resume(run_id, True, d.note)
+    return _resume(run_id, True, d.note, d.approver)
 
 
 @app.post("/runs/{run_id}/reject")
 def reject(run_id: str, d: Decision) -> dict[str, Any]:
-    return _resume(run_id, False, d.note or "rejected")
+    return _resume(run_id, False, d.note or "rejected", d.approver)
 
 
 @app.get("/results")

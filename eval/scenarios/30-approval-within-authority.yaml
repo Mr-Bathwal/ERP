@@ -1,0 +1,10 @@
+name: approval_by_head_of_finance_completes
+input: seed/samples/req-authority-limit.txt
+category: authority
+why: The same order, approved by the Head of Finance, whose authority covers it.
+approve: true
+approver: finance.head
+expect:
+  state: completed
+  approval_required: true
+  rules_cited: [R1, R12]
