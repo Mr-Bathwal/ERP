@@ -6,14 +6,25 @@ URL — rather than only by a flag in a test. The dashboard reads from here
 when it is run live, and from the exported JSON when it is served statically.
 
     uvicorn procureflow.api:app --reload --port 8000
+
+Who is calling is decided by a bearer token, never by the request body.
+`PF_API_TOKENS` maps tokens to identities (`token=proc.manager,...`); with
+no tokens configured every write endpoint refuses (fail closed). Reads --
+health, policy, permissions, results -- stay open. The run endpoint takes no
+"auto-approve" flag and no approver: approval only happens through
+`/approve`, as the token's identity, under R12. Sources must live in the
+inbox folder (`PF_INBOX`), so the API cannot be pointed at an arbitrary
+file on the server, and CORS allows only the dashboard's origin.
 """
 
 from __future__ import annotations
 
+import hmac
+import os
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -26,8 +37,47 @@ from .policy_rag import PolicyIndex
 from .tools import describe_permissions
 
 app = FastAPI(title="ProcureFlow", docs_url="/docs", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
-                   allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in os.getenv(
+        "PF_CORS_ORIGINS", "http://localhost:8123,http://127.0.0.1:8123").split(",") if o.strip()],
+    allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+
+
+def _tokens() -> dict[str, str]:
+    out: dict[str, str] = {}
+    for pair in os.getenv("PF_API_TOKENS", "").split(","):
+        if "=" in pair:
+            tok, who = pair.split("=", 1)
+            if tok.strip() and who.strip():
+                out[tok.strip()] = who.strip()
+    return out
+
+
+def identity(authorization: str | None) -> str:
+    """The caller's identity from `Authorization: Bearer <token>`, or 401."""
+    tokens = _tokens()
+    if not tokens:
+        raise HTTPException(401, "no API tokens are configured (PF_API_TOKENS); writes are off")
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(401, "a bearer token is required")
+    for known, who in tokens.items():
+        if hmac.compare_digest(known.encode(), token.strip().encode()):
+            return who
+    raise HTTPException(401, "unknown token")
+
+
+def inbox_path(name: str) -> Path:
+    """A source document inside the inbox, or 400. No escaping it, no symlinks."""
+    inbox = Path(os.getenv("PF_INBOX", "seed/samples")).resolve()
+    candidate = (inbox / name)
+    if candidate.is_symlink():
+        raise HTTPException(400, "symbolic links are not accepted")
+    resolved = candidate.resolve()
+    if inbox not in resolved.parents or not resolved.is_file():
+        raise HTTPException(400, f"{name!r} is not a document in the inbox")
+    return resolved
 
 _POLICY: PolicyIndex | None = None
 _RUNS: dict[str, dict[str, Any]] = {}
@@ -50,20 +100,15 @@ def _erp(live: bool):
 
 
 class RunRequest(BaseModel):
-    file: str
+    file: str                      # a name inside the inbox folder, not a path
     live: bool = False
     dry_run: bool = False
     receipt_mode: str = "api"
     supplier_invoice_no: str = ""
-    auto_approve: bool = False
-    approver: str = ""            # with auto_approve: who is giving it (R12)
 
 
 class Decision(BaseModel):
     note: str = ""
-    # The approver id from R12's table. Asserted by the caller here; in a
-    # deployment it comes from the authenticated session, never the body.
-    approver: str = ""
 
 
 def _view(s: Any, tr: Any) -> dict[str, Any]:
@@ -116,14 +161,15 @@ def get_policy() -> dict[str, Any]:
 
 
 @app.post("/runs")
-def start_run(req: RunRequest) -> dict[str, Any]:
-    if not Path(req.file).exists():
-        raise HTTPException(404, f"no such file: {req.file}")
+def start_run(req: RunRequest, authorization: str | None = Header(default=None)
+              ) -> dict[str, Any]:
+    who = identity(authorization)
+    source = inbox_path(req.file)
     erp = _erp(req.live)
     agent = Agent(erp, policy=policy(), trace_db=settings.trace_db)
-    s, tr = agent.run(req.file, dry_run=req.dry_run, receipt_mode=req.receipt_mode,
+    s, tr = agent.run(source, dry_run=req.dry_run, receipt_mode=req.receipt_mode,
                       plan=RunPlan(supplier_invoice_no=req.supplier_invoice_no),
-                      approve=True if req.auto_approve else None, approver=req.approver)
+                      submitted_by=who)
     view = _view(s, tr)
     _RUNS[tr.run_id] = view
     if s.state is RunState.AWAITING_APPROVAL:
@@ -163,13 +209,15 @@ def _resume(run_id: str, approved: bool, note: str, approver: str) -> dict[str, 
 
 
 @app.post("/runs/{run_id}/approve")
-def approve(run_id: str, d: Decision) -> dict[str, Any]:
-    return _resume(run_id, True, d.note, d.approver)
+def approve(run_id: str, d: Decision,
+            authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    return _resume(run_id, True, d.note, identity(authorization))
 
 
 @app.post("/runs/{run_id}/reject")
-def reject(run_id: str, d: Decision) -> dict[str, Any]:
-    return _resume(run_id, False, d.note or "rejected", d.approver)
+def reject(run_id: str, d: Decision,
+           authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    return _resume(run_id, False, d.note or "rejected", identity(authorization))
 
 
 @app.get("/results")

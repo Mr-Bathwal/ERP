@@ -830,3 +830,61 @@ def test_every_run_records_the_policy_it_was_decided_under(erp, policy, tmp_path
     v, h = sqlite3.connect(db).execute(
         "SELECT policy_version, policy_sha256 FROM runs WHERE run_id=?", (tr.run_id,)).fetchone()
     assert h == policy.sha256 and len(h) == 64
+
+
+# ---------------------------------------------------------------------------
+# The API: identity from a token, never the body; sources confined to an inbox
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def api(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from procureflow import api as api_mod
+    from procureflow import state_store
+    monkeypatch.setenv("PF_API_TOKENS", "tok-req=k.rao,tok-pm=proc.manager,tok-fin=finance.head")
+    monkeypatch.setenv("PF_INBOX", str(ROOT / "seed" / "samples"))
+    monkeypatch.setattr(api_mod.settings, "trace_db", str(tmp_path / "t.sqlite"))
+    for fn in ("save", "load", "exists", "discard"):
+        orig = getattr(state_store, fn)
+        monkeypatch.setattr(state_store, fn,
+                            lambda *a, _o=orig, **k: _o(*a, folder=tmp_path / "paused", **k))
+    return TestClient(api_mod.app)
+
+
+def test_a_write_without_a_token_is_refused(api):
+    r = api.post("/runs", json={"file": "req-happy.txt"})
+    assert r.status_code == 401
+
+
+def test_the_run_endpoint_has_no_self_approval_flag(api):
+    r = api.post("/runs", json={"file": "req-over-threshold.txt", "auto_approve": True,
+                                "approver": "finance.head"},
+                 headers={"Authorization": "Bearer tok-req"})
+    assert r.status_code == 200 and r.json()["state"] == "awaiting_approval"
+
+
+@pytest.mark.parametrize("name", ["../../pyproject.toml", "../README.md", "C:/Windows/win.ini"])
+def test_a_source_outside_the_inbox_is_refused(api, name):
+    r = api.post("/runs", json={"file": name}, headers={"Authorization": "Bearer tok-req"})
+    assert r.status_code == 400
+
+
+def test_the_approver_is_the_token_not_a_field_in_the_body(api):
+    run = api.post("/runs", json={"file": "req-over-threshold.txt"},
+                   headers={"Authorization": "Bearer tok-req"}).json()
+    # The requester's own token cannot approve, whatever the body claims.
+    r = api.post(f"/runs/{run['run_id']}/approve", json={"note": "ok", "approver": "finance.head"},
+                 headers={"Authorization": "Bearer tok-req"})
+    assert r.json()["state"] == "awaiting_approval"
+    r = api.post(f"/runs/{run['run_id']}/approve", json={"note": "ok"},
+                 headers={"Authorization": "Bearer tok-pm"})
+    assert r.json()["state"] == "completed" and r.json()["approver"] == "proc.manager"
+
+
+def test_cors_is_not_open_to_every_origin(api):
+    r = api.options("/runs", headers={"Origin": "https://evil.example",
+                                      "Access-Control-Request-Method": "POST"})
+    assert r.headers.get("access-control-allow-origin") != "*"
+    assert r.headers.get("access-control-allow-origin") != "https://evil.example"
