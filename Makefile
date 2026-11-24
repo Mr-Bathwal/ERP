@@ -19,8 +19,10 @@ seed:             ## create master data in a live ERPNext (idempotent)
 run:              ## run one request end to end against the fake ERP
 	$(PY) -m procureflow.cli run seed/samples/req-happy.txt
 
-eval:             ## run all scenarios and write results + exceptions.xlsx
-	$(PY) eval/run_eval.py --tag v2
+eval:             ## run all scenarios, diffed against eval/baseline.json
+	$(PY) eval/run_eval.py --tag scratch --check-baseline
+
+eval-publish:     
 
 eval-live:        ## run all scenarios against a live ERPNext
 	$(PY) eval/run_eval.py --tag live --live

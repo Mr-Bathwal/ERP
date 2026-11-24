@@ -203,7 +203,7 @@ behaviours, not tested claims.
 ```bash
 make setup           # venv + dependencies
 make test            # 229 offline tests, no ERP, no keys
-python eval/run_eval.py --tag mine --check-baseline   # 48 scenarios
+make eval            # 48 scenarios, diffed against the frozen baseline
 python -m procureflow.cli run seed/samples/req-happy.txt
 ```
 
