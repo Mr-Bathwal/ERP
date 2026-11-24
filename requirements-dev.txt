@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest>=8.3
 ruff>=0.6
+python-stdnum>=1.20   # cross-checks the offline GSTIN check character in tests

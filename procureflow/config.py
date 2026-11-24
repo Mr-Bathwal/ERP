@@ -129,6 +129,8 @@ class PurchaseRequest(BaseModel):
     requester: str | None = Field(default=None, description="who asked, if stated")
     supplier_invoice_no: str | None = Field(
         default=None, description="supplier's own invoice/quote number, if stated")
+    supplier_gstin: str | None = Field(
+        default=None, description="the supplier's GSTIN exactly as printed, if any")
     notes: str | None = None
 
     source_file: str = ""

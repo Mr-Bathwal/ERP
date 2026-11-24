@@ -292,10 +292,56 @@ class Agent:
                        "tax registration, so the agent may not do it")
                 st.outcome, st.detail, st.rules_cited = "escalated", s.reason, ["R6"]
                 return s
-            st.detail = f"supplier {req.supplier!r} exists; "
+            sup = self.erp.get_doc("Supplier", req.supplier)
+            if (problem := self._standing(sup, s.ctx.today)):
+                s.state, s.reason = RunState.ESCALATED, f"R6: supplier {req.supplier!r} {problem}"
+                s.cite("R6", "escalated", problem)
+                st.outcome, st.detail, st.rules_cited = "escalated", s.reason, ["R6"]
+                return s
+            if str(sup.get("hold_type") or "") == "Payments" and int(sup.get("on_hold") or 0):
+                s.cite("R6", "noted", "the supplier's payments are on hold in ERPNext")
+
+            master = str(sup.get("gstin") or sup.get("tax_id") or "").strip().upper()
+            printed = (req.supplier_gstin or "").strip().upper()
+            why = ""
+            if printed and (bad := screen.gstin_problem(printed)):
+                why = f"the document's GSTIN {bad.split(' ', 1)[1]}"
+            elif printed and master and printed != master:
+                why = (f"the document carries GSTIN {printed} but the supplier master holds "
+                       f"{master}: the quote may not come from {req.supplier}")
+            if why:
+                s.state, s.reason = RunState.NEEDS_HUMAN, f"R6: {why}"
+                s.cite("R6", "stopped", why)
+                st.outcome, st.detail, st.rules_cited = "needs_human", s.reason, ["R6"]
+                return s
+
+            st.detail = f"supplier {req.supplier!r} exists and may trade; "
             st.detail += f"{len(req.items)} item(s) resolved"
+            if printed:
+                st.detail += f"; GSTIN {printed} matches the master"
             st.erp_docs = [req.supplier or ""]
         return s
+
+    @staticmethod
+    def _standing(sup: Doc, today: date) -> str:
+        """Why this supplier may not be ordered from, or '' if it may.
+
+        ERPNext's own blocks, read rather than discovered at the PO write: a
+        disabled or frozen supplier, or one on hold for invoices or for
+        everything with no release date or one still in the future. A
+        payments-only hold does not stop an order.
+        """
+        if int(sup.get("disabled") or 0):
+            return "is disabled in the supplier master"
+        if int(sup.get("is_frozen") or 0):
+            return "is frozen in the supplier master"
+        if int(sup.get("on_hold") or 0) and str(sup.get("hold_type") or "All") in ("All",
+                                                                                  "Invoices"):
+            release = str(sup.get("release_date") or "")
+            if not release or release[:10] > today.isoformat():
+                until = f" until {release[:10]}" if release else ""
+                return f"is on hold ({sup.get('hold_type') or 'All'}){until}"
+        return ""
 
     def n_policy_check(self, s: State, tr: Tracer) -> State:
         """Retrieve the applicable rules and decide what they require."""

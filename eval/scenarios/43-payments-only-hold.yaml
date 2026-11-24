@@ -1,0 +1,12 @@
+name: payments_only_hold_still_orders
+input: seed/samples/req-happy.txt
+category: master data
+why: >
+  A hold on payments only does not stop an order in ERPNext, so it does not
+  stop the run either; it is cited so the person paying sees it.
+master_changes:
+  Supplier:
+    Bharat Fasteners Pvt Ltd: {on_hold: 1, hold_type: Payments}
+expect:
+  state: completed
+  rules_cited: [R6]

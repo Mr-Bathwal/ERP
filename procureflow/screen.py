@@ -224,6 +224,44 @@ def screen(path: str | Path, text: str, *, min_font_pt: float = 2.0) -> list[Fin
 
 
 # ---------------------------------------------------------------------------
+# GSTIN: structure and check character, offline (R6)
+# ---------------------------------------------------------------------------
+
+_GSTIN = re.compile(r"^(?P<state>\d{2})(?P<pan>[A-Z]{3}[ABCFGHLJPTK][A-Z]\d{4}[A-Z])"
+                    r"(?P<entity>[1-9A-Z])Z(?P<check>[0-9A-Z])$")
+_B36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# No leading word boundary: pypdf runs the letterhead name into the label
+# ("...AlloysGSTIN 29AAB...").
+GSTIN_IN_TEXT = re.compile(r"GSTIN\b\s*(?:no\.?|number)?\s*[:\-]?\s*([0-9]{2}[0-9A-Z]{13})\b",
+                           re.IGNORECASE)
+
+
+def gstin_check_char(first14: str) -> str:
+    """The 15th character: a Luhn mod 36 over the first fourteen.
+
+    Cross-checked against python-stdnum's in_.gstin in the test suite.
+    """
+    total = 0
+    for i, c in enumerate(first14):
+        v = _B36.index(c) * (2 if i % 2 else 1)
+        total += v // 36 + v % 36
+    return _B36[(36 - total % 36) % 36]
+
+
+def gstin_problem(gstin: str) -> str:
+    """'' if `gstin` is structurally valid, otherwise what is wrong with it."""
+    g = (gstin or "").strip().upper()
+    m = _GSTIN.match(g)
+    if not m:
+        return f"{gstin!r} is not shaped like a GSTIN"
+    if not (1 <= int(m["state"]) <= 38 or m["state"] in ("97", "99")):
+        return f"{gstin!r} has no valid state code"
+    if gstin_check_char(g[:14]) != g[14]:
+        return f"{gstin!r} fails its check character"
+    return ""
+
+
+# ---------------------------------------------------------------------------
 # After the read: every value must be on the page
 # ---------------------------------------------------------------------------
 
@@ -256,6 +294,9 @@ def ground(req: Any, text: str, *, dates_in_text: set[str]) -> list[str]:
             bad.append(f"line {i} quantity {line.qty:g}")
         if line.rate is not None and dec(line.rate) not in nums:
             bad.append(f"line {i} rate {line.rate:g}")
+    gst = getattr(req, "supplier_gstin", None)
+    if gst and gst.upper() not in text.upper():
+        bad.append(f"supplier GSTIN {gst!r}")
     req_by = getattr(req, "requester", None)
     if req_by and " ".join(_tokens(req_by)) not in flat:
         bad.append(f"requester {req_by!r}")

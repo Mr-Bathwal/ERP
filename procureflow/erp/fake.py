@@ -223,6 +223,17 @@ class FakeERPClient:
                 raise ERPError(f"Could not find {ref_doctype}: {val}",
                                status=417, doctype=doctype, payload=payload)
 
+        # ERPNext refuses orders and invoices to a supplier on hold for
+        # Invoices or All, as its Supplier documentation describes.
+        sup = self.docs.get("Supplier", {}).get(str(payload.get("supplier") or ""), {})
+        release = str(sup.get("release_date") or "")[:10]
+        when = str(payload.get("transaction_date") or payload.get("posting_date") or "")[:10]
+        if (doctype in ("Purchase Order", "Purchase Invoice") and int(sup.get("on_hold") or 0)
+                and (sup.get("hold_type") or "All") in ("All", "Invoices")
+                and (not release or release > when)):
+            raise ERPError(f"Purchase Orders are not allowed for {payload.get('supplier')} "
+                           "due to Hold Type", status=417, doctype=doctype, payload=payload)
+
         for it in payload.get("items") or []:
             code = it.get("item_code")
             if code and not self.exists("Item", str(code)):
@@ -348,9 +359,18 @@ def demo_company(year: int = 2026) -> FakeERPClient:
         ("Kaveri Polymers Ltd", False), ("Nilgiri Abrasives", False),
         ("Sahyadri Lubricants LLP", False), ("Konkan Electricals", False),
     ]
+    gstins = {
+        "Bharat Fasteners Pvt Ltd": "29AABCB4321K1ZR",
+        "Deccan Steel & Alloys": "29AABCD1234E1Z4",
+        "Kaveri Polymers Ltd": "29AAFCK5566L1ZV",
+        "Nilgiri Abrasives": "29AAACN1122P1ZD",
+        "Sahyadri Lubricants LLP": "29AAJFS3344Q1ZF",
+        "Konkan Electricals": "29AADCK7788M1ZJ",
+    }
     for nm, preferred in suppliers:
         erp.seed("Supplier", nm, supplier_name=nm, supplier_group="Raw Material",
-                 country="India", preferred=int(preferred))
+                 country="India", preferred=int(preferred), tax_id=gstins[nm],
+                 disabled=0, is_frozen=0, on_hold=0, hold_type="", release_date="")
 
     items = [
         ("FAS-M8-HEX", "Hex bolt M8x40 stainless", "Nos", 12.0),

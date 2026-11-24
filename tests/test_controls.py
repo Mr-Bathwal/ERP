@@ -888,3 +888,52 @@ def test_cors_is_not_open_to_every_origin(api):
                                       "Access-Control-Request-Method": "POST"})
     assert r.headers.get("access-control-allow-origin") != "*"
     assert r.headers.get("access-control-allow-origin") != "https://evil.example"
+
+
+# ---------------------------------------------------------------------------
+# R6: supplier standing and GSTIN identity
+# ---------------------------------------------------------------------------
+
+
+def test_the_gstin_check_character_agrees_with_python_stdnum():
+    stdnum = pytest.importorskip("stdnum.in_.gstin")
+    import random
+    rnd = random.Random(7)
+    pan4 = "ABCFGHLJPTK"
+    for _ in range(500):
+        body = (f"{rnd.randint(1, 37):02d}" + "".join(rnd.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                for _ in range(3)) + rnd.choice(pan4) + rnd.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                + f"{rnd.randint(0, 9999):04d}" + rnd.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                + rnd.choice("123456789") + "Z")
+        g = body + scr.gstin_check_char(body)
+        assert stdnum.is_valid(g) and scr.gstin_problem(g) == "", g
+
+
+def test_every_supplier_master_and_sample_quote_carries_a_valid_gstin(erp):
+    for row in erp.docs["Supplier"].values():
+        assert scr.gstin_problem(row["tax_id"]) == "", row["name"]
+    assert "fails its check character" in scr.gstin_problem("29AABCD1234E1Z5")   # v2's fixture
+
+
+@pytest.mark.parametrize("fields,state", [
+    ({"disabled": 1}, RunState.ESCALATED),
+    ({"is_frozen": 1}, RunState.ESCALATED),
+    ({"on_hold": 1, "hold_type": "Invoices"}, RunState.ESCALATED),
+    ({"on_hold": 1, "hold_type": "All", "release_date": "2026-12-31"}, RunState.ESCALATED),
+    ({"on_hold": 1, "hold_type": "All", "release_date": "2026-11-01"}, RunState.COMPLETED),
+    ({"on_hold": 1, "hold_type": "Payments"}, RunState.COMPLETED),
+])
+def test_supplier_standing_is_read_before_anything_is_written(agent, erp, fields, state):
+    erp.docs["Supplier"]["Bharat Fasteners Pvt Ltd"].update(fields)
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is state, s.reason
+    if state is RunState.ESCALATED:
+        assert not erp.docs.get("Material Request")
+
+
+def test_a_document_gstin_that_fails_its_check_stops_the_run(agent, tmp_path):
+    text = (ROOT / "seed" / "samples" / "req-happy.txt").read_text()
+    p = tmp_path / "req.txt"
+    p.write_text(text.replace("Hi,", "Hi,\nGSTIN 29AABCB4321K1Z2\n"), encoding="utf-8")
+    s, _ = agent.run(str(p), today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN and "check character" in s.reason

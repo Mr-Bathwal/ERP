@@ -202,6 +202,13 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
     else:
         erp = demo_company()
 
+    # Facts about the world the scenario needs, e.g. a supplier on hold.
+    for doctype, rows in (sc.get("master_changes") or {}).items():
+        if live:
+            break
+        for name, fields in rows.items():
+            erp.docs[doctype][name].update(fields)
+
     # Faults are armed before the run so the retry and escalate paths are
     # exercised deterministically rather than by hoping a server misbehaves.
     if (f := sc.get("inject_fault")) and not live:

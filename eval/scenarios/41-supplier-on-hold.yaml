@@ -1,0 +1,16 @@
+name: supplier_on_hold_escalates
+input: seed/samples/req-happy.txt
+category: master data
+why: >
+  Bharat Fasteners exists, so v2's R6 passed it, submitted a Material Request
+  and then met ERPNext's refusal at the Purchase Order with a generic error.
+  The supplier is on hold (All) in ERPNext; R6 now reads that standing first
+  and escalates before anything is written.
+master_changes:
+  Supplier:
+    Bharat Fasteners Pvt Ltd: {on_hold: 1, hold_type: All}
+expect:
+  state: escalated
+  rules_cited: [R6]
+  no_documents: true
+  reason_contains: on hold

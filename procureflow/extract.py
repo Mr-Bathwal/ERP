@@ -325,6 +325,9 @@ def heuristic_extract(text: str, *, source_file: str = "", kind: str = "email") 
 
     if kind != "pdf":
         req.requester = _requester(text)
+    from .screen import GSTIN_IN_TEXT
+    if (g := GSTIN_IN_TEXT.search(text)):
+        req.supplier_gstin = g.group(1).upper()
 
     # A PDF table is emitted by pypdf one *cell* per line, so it is walked
     # as a cell sequence rather than matched as rows. Where that succeeds it

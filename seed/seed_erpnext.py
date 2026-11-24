@@ -42,7 +42,7 @@ def _masters() -> tuple[list[dict], list[dict], list[dict]]:
     suppliers = [{"supplier_name": r["name"],
                   "supplier_group": r.get("supplier_group", "Raw Material"),
                   "country": r.get("country", "India"),
-                  "preferred": bool(r.get("preferred"))}
+                  "preferred": bool(r.get("preferred")), "tax_id": r.get("tax_id", "")}
                  for r in f.docs["Supplier"].values()]
     items = [{"item_code": r["name"], "item_name": r.get("item_name", r["name"]),
               "description": r.get("description", ""),
@@ -137,6 +137,7 @@ class Seeder:
                 "supplier_group": s["supplier_group"],
                 "country": s["country"],
                 "supplier_type": "Company",
+                "tax_id": s["tax_id"],
                 # ERPNext has no "preferred" field out of the box. The policy
                 # names the two preferred suppliers by name (R2), so this is
                 # recorded where a buyer will see it rather than invented as

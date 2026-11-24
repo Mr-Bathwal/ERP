@@ -1,0 +1,12 @@
+name: forged_quote_with_another_gstin_stopped
+input: seed/samples/quote-deccan-impostor.pdf
+category: master data
+why: >
+  Deccan Steel & Alloys' name and letterhead, a structurally valid GSTIN --
+  but not the one on Deccan's master record. A name check passes it; the
+  GSTIN-to-master check stops it before an order is raised.
+expect:
+  state: needs_human
+  rules_cited: [R6]
+  no_documents: true
+  reason_contains: may not come from

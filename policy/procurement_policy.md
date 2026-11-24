@@ -116,6 +116,15 @@ If the supplier on a request does not exist in the ERPNext Supplier master,
 the agent **stops and escalates**. It must not create the supplier, and must
 not guess at the nearest existing name.
 
+A supplier that exists but is **disabled**, **frozen**, or **on hold** for
+Invoices or All (with no release date, or one still in the future) is not
+available to order from, and the run escalates before anything is written.
+A payments-only hold does not stop an order and is noted. If the document
+prints a GSTIN, it must pass its check character and **equal the GSTIN on
+the supplier master**; otherwise the run stops for a person, because a quote
+carrying a real supplier's name and someone else's tax registration is how
+an impostor gets onto a purchase order.
+
 > **Why.** Supplier creation is the control point for bank details, tax
 > registration and onboarding checks. An agent that can create a supplier is
 > an agent that can be talked into creating a payee, and the request arrives
@@ -311,7 +320,7 @@ related orders are listed for the approver.
 | R3 | Price variance | 5% or ₹500, tighter | `price_variance` |
 | R4 | Qty variance | 2% or 1 unit, greater | `qty_short` / `qty_over` |
 | R5 | Duplicate invoice | normalised match; look-alike or same amount in 30 days | blocked; `possible_duplicate` held |
-| R6 | Unknown supplier | not in master | escalate, never automatic |
+| R6 | Supplier | not in master, disabled, frozen, on hold; GSTIN invalid or not the master's | escalate / stop |
 | R7 | Expedite | needed in < 2 days | flag, continue |
 | R8 | Authority | — | never automatic |
 | R9 | Missing receipt | no receipt for invoice | `missing_receipt`, hold |
