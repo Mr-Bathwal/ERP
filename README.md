@@ -7,6 +7,10 @@
 ![Tests](https://img.shields.io/badge/tests-239%20offline-1a7f37)
 ![Eval](https://img.shields.io/badge/eval-48%20scenarios%20·%20fake%20ERP-1a7f37)
 
+**[The evaluation record, live](https://procureflow-nu-ten.vercel.app)** — every
+figure on that page is computed in the browser from the committed
+`results-v3.json`, so it cannot drift from this repository.
+
 Drop in a purchase-request email or a supplier quote PDF. ProcureFlow reads
 it, checks it against a written procurement policy of sixteen rules, raises
 the Material Request and the Purchase Order in ERPNext, **stops for a named
