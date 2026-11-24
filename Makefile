@@ -32,7 +32,7 @@ test:             ## offline test suite
 	$(PY) -m pytest tests -q
 
 lint:
-	$(PY) -m ruff check procureflow eval seed tests
+	$(PY) -m ruff check procureflow eval seed tests dashboard
 
 report:
 	$(PY) -m procureflow.cli report

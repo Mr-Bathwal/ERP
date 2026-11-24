@@ -16,7 +16,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - name: Lint
-        run: ruff check procureflow eval seed tests
+        run: ruff check procureflow eval seed tests dashboard
       - name: Tests
         # Fully offline: FakeERPClient, lexical policy retrieval, no keys.
         run: pytest tests -q
