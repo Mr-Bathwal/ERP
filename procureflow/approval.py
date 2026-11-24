@@ -110,8 +110,19 @@ def snapshot(doc: Any) -> dict[str, Any]:
         [str(i.get("item_code") or ""), _qty(i.get("qty")), paise(i.get("rate")),
          str(i.get("uom") or "")]
         for i in (doc.items or []))
+    lines = sorted(ln + [str(i.get("warehouse") or ""), str(i.get("schedule_date") or "")]
+                   for ln, i in zip(lines, sorted(doc.items or [], key=lambda i: [
+                       str(i.get("item_code") or ""), _qty(i.get("qty")), paise(i.get("rate")),
+                       str(i.get("uom") or "")]), strict=True))
     return {"name": doc.name, "supplier": str(doc.get("supplier") or ""),
-            "lines": lines, "grand_total_paise": paise(doc.get("grand_total"))}
+            "lines": lines, "grand_total_paise": paise(doc.get("grand_total")),
+            # What a quiet edit would change without touching a price: where
+            # the goods go, when, on what terms, in what currency.
+            "shipping_address": str(doc.get("shipping_address") or ""),
+            "set_warehouse": str(doc.get("set_warehouse") or ""),
+            "payment_terms_template": str(doc.get("payment_terms_template") or ""),
+            "currency": str(doc.get("currency") or ""),
+            "conversion_rate": str(doc.get("conversion_rate") or "")}
 
 
 def digest(snap: dict[str, Any]) -> str:
@@ -139,6 +150,13 @@ def describe_change(before: dict[str, Any], after: dict[str, Any]) -> str:
                 out.append(f"{code} rate {rupees(b[code][2])} became {rupees(a[code][2])}")
             if b[code][3] != a[code][3]:
                 out.append(f"{code} unit {b[code][3]} became {a[code][3]}")
+            if b[code][4:] != a[code][4:]:
+                out.append(f"{code} delivery {b[code][4:]} became {a[code][4:]}")
+    for field_name in ("shipping_address", "set_warehouse", "payment_terms_template",
+                       "currency", "conversion_rate"):
+        if before.get(field_name) != after.get(field_name):
+            out.append(f"{field_name.replace('_', ' ')} {before.get(field_name)!r} became "
+                       f"{after.get(field_name)!r}")
     if before.get("grand_total_paise") != after.get("grand_total_paise"):
         out.append(f"grand total {rupees(before.get('grand_total_paise', 0))} became "
                    f"{rupees(after.get('grand_total_paise', 0))}")

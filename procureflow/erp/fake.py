@@ -77,6 +77,10 @@ class FakeERPClient:
     calls: list[tuple[str, str, str]] = field(default_factory=list)
     _counters: dict[str, itertools.count] = field(default_factory=dict)
     _faults: list[_Fault] = field(default_factory=list)
+    # ERPNext v15 Stock Settings `over_delivery_receipt_allowance`, default 0:
+    # a receipt above its order is refused at submit ("Limit Crossed").
+    over_receipt_allowance_pct: float = 0.0
+    _clock: int = 0
 
     # -- test helpers -----------------------------------------------------
 
@@ -252,6 +256,7 @@ class FakeERPClient:
         name = self._next_name(doctype)
         row = self._derive(doctype, payload)
         row["name"] = name
+        row["modified"] = self._stamp()
         self.docs.setdefault(doctype, {})[name] = row
         self._maybe_fail(doctype, "insert", after_commit=True)
 
@@ -264,7 +269,18 @@ class FakeERPClient:
                     + "; ".join(drift), doctype=doctype, payload=payload)
         return stored
 
-    def submit(self, doctype: str, name: str) -> Doc:
+    def _stamp(self) -> str:
+        """A strictly increasing `modified`, as Frappe writes on every save."""
+        self._clock += 1
+        return f"2026-11-24 09:{self._clock // 60:02d}:{self._clock % 60:02d}.{self._clock:06d}"
+
+    def edit(self, doctype: str, name: str, **fields: Any) -> None:
+        """A person changing a draft in the ERPNext screen: fields and `modified` move."""
+        row = self.docs[doctype][name]
+        row.update(fields)
+        row["modified"] = self._stamp()
+
+    def submit(self, doctype: str, name: str, *, expected_modified: str | None = None) -> Doc:
         self._guard(doctype, write=True)
         self.calls.append(("submit", doctype, name))
         self._maybe_fail(doctype, "submit")
@@ -274,13 +290,36 @@ class FakeERPClient:
         if int(row.get("docstatus", 0)) == 1:
             raise ERPError(f"{doctype} {name} is already submitted",
                            status=417, doctype=doctype)
+        if expected_modified and row.get("modified") != expected_modified:
+            # Frappe's Document.check_if_latest: TimestampMismatchError.
+            raise ERPError(f"Document has been modified after you have opened it "
+                           f"({row.get('modified')}, {expected_modified})",
+                           status=417, doctype=doctype)
+        if doctype == "Purchase Receipt":
+            self._check_over_receipt(row)
         row["docstatus"] = 1
+        row["modified"] = self._stamp()
         row["status"] = "To Receive and Bill"
         self._maybe_fail(doctype, "submit", after_commit=True)
         stored = self.get_doc(doctype, name)
         if stored.docstatus != 1:                              # pragma: no cover
             raise VerificationError(f"{doctype} {name} did not submit", doctype=doctype)
         return stored
+
+    def _check_over_receipt(self, receipt: dict[str, Any]) -> None:
+        po = self.docs.get("Purchase Order", {}).get(str(receipt.get("purchase_order") or ""))
+        if not po:
+            return
+        ordered: dict[str, float] = {}
+        for it in po.get("items") or []:
+            ordered[it["item_code"]] = ordered.get(it["item_code"], 0.0) + float(it["qty"])
+        for it in receipt.get("items") or []:
+            limit = ordered.get(it["item_code"], 0.0) * (1 + self.over_receipt_allowance_pct / 100)
+            if float(it["qty"]) > limit + 1e-9:
+                raise ERPError(f"Limit Crossed: {it['item_code']} received {float(it['qty']):g} "
+                               f"against {ordered.get(it['item_code'], 0):g} ordered "
+                               f"(over-receipt allowance {self.over_receipt_allowance_pct:g}%)",
+                               status=417, doctype="Purchase Receipt")
 
     def run_method(self, dotted_path: str, **kwargs: Any) -> dict[str, Any]:
         """The two ERPNext mapper methods the graph relies on.

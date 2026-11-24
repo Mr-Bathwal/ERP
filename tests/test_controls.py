@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 
 import pytest
@@ -1020,3 +1021,51 @@ def test_a_resumed_run_after_approval_is_not_a_violation():
     tr = _trace(("approval_gate", "paused", [], []), ("approval_gate", "approved", [], []),
                 ("submit_purchase_order", "ok", W, []))
     assert invariants.check(tr, rule_ids=set()) == []
+
+
+# ---------------------------------------------------------------------------
+# The submit is version-locked; the approval covers delivery and terms too
+# ---------------------------------------------------------------------------
+
+
+def test_an_edit_racing_the_submit_is_refused_by_the_erp_itself(agent, erp):
+    """Between the read-back and the PUT, someone saves the order."""
+    s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
+    original = erp.get_doc
+    raced = []
+
+    def get_then_race(doctype, name):
+        doc = original(doctype, name)
+        if doctype == "Purchase Order" and not raced:
+            raced.append(name)
+            erp.edit(doctype, name, set_warehouse="Stores - PFD")   # a save, same content
+        return doc
+
+    erp.get_doc = get_then_race
+    s2, _ = agent.resume(s, tr, approved=True, approver="proc.manager")
+    assert s2.state is RunState.NEEDS_HUMAN and "changed between its last read" in s2.reason
+    assert erp.docs["Purchase Order"][s.po.name]["docstatus"] == 0
+
+
+def test_a_delivery_address_edit_while_awaiting_approval_voids_it(agent, erp):
+    s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
+    erp.edit("Purchase Order", s.po.name, shipping_address="Unit 9, Some Other Yard")
+    s2, _ = agent.resume(s, tr, approved=True, approver="proc.manager")
+    assert s2.state is RunState.BLOCKED and "shipping address" in s2.reason
+
+
+def test_the_rest_client_sends_the_modified_stamp_with_the_submit():
+    import httpx
+    seen = {}
+
+    class T:
+        def handle_request(self, request):                       # noqa: ANN001
+            if request.method == "PUT":
+                seen.update(json.loads(request.content))
+            return httpx.Response(200, json={"data": {"name": "P", "docstatus": 1}},
+                                  request=request)
+
+    c = ERPNextClient("http://erp.invalid", "k", "s", max_retries=1)
+    c._client = httpx.Client(base_url="http://erp.invalid", transport=T())
+    c.submit("Purchase Order", "P", expected_modified="2026-11-24 09:00:01.000001")
+    assert seen == {"docstatus": 1, "modified": "2026-11-24 09:00:01.000001"}

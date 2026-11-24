@@ -252,6 +252,16 @@
   "state": "blocked",
   "steps": 8
  },
+ "over_receipt_refused_by_erpnext_default": {
+  "erp_writes": 6,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "needs_human",
+  "steps": 8
+ },
  "partial_receipt_qty_short": {
   "erp_writes": 7,
   "exceptions": [

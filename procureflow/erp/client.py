@@ -138,7 +138,8 @@ class ERPClient(Protocol):
     def insert(self, doctype: str, payload: dict[str, Any], *,
                verify: dict[str, Any] | None = None) -> Doc: ...
 
-    def submit(self, doctype: str, name: str) -> Doc: ...
+    def submit(self, doctype: str, name: str, *,
+               expected_modified: str | None = None) -> Doc: ...
 
     def run_method(self, dotted_path: str, **kwargs: Any) -> dict[str, Any]: ...
 
@@ -340,15 +341,24 @@ class ERPNextClient:
                     + "; ".join(drift), doctype=doctype, payload=payload)
         return stored
 
-    def submit(self, doctype: str, name: str) -> Doc:
+    def submit(self, doctype: str, name: str, *,
+               expected_modified: str | None = None) -> Doc:
         """Submit, then confirm docstatus is actually 1.
+
+        With `expected_modified`, the PUT carries the document's `modified`
+        stamp, and Frappe's own check_if_latest refuses the save if anyone
+        changed the document since -- a version lock the server enforces,
+        not a comparison this client hopes to win the race on.
 
         A submit that returns 200 and leaves the document in draft is rare
         and extremely expensive to discover later, because every downstream
         document silently refuses to link to it.
         """
         self._guard(doctype, write=True)
-        self._request("PUT", f"/api/resource/{doctype}/{name}", json={"docstatus": 1})
+        body: dict[str, Any] = {"docstatus": 1}
+        if expected_modified:
+            body["modified"] = expected_modified
+        self._request("PUT", f"/api/resource/{doctype}/{name}", json=body)
         stored = self.get_doc(doctype, name)
         if stored.docstatus != 1:
             raise VerificationError(

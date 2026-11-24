@@ -1,0 +1,14 @@
+name: over_receipt_refused_by_erpnext_default
+input: seed/samples/req-short-delivery.txt
+category: quantity / receipt
+why: >
+  66 rods received against 60 ordered with ERPNext's default allowance of 0%.
+  The receipt is refused at submit ("Limit Crossed") and the run stops with
+  that reason, instead of the fake accepting what a live site would refuse.
+approve: true
+approver: proc.manager
+plan:
+  received_qty: {STL-ROD-20: 66}
+expect:
+  state: needs_human
+  reason_contains: Limit Crossed

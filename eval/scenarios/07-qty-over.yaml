@@ -1,8 +1,12 @@
 name: qty_over_receipt
 input: seed/samples/req-short-delivery.txt
-why: Over-receipt is an exception too; it is not a windfall.
+why: >
+  Over-receipt is an exception too; it is not a windfall. ERPNext refuses a
+  receipt above its order unless an allowance is configured, so this states
+  the 10% allowance it relies on (scenario 48 shows the default refusal).
 approve: true   # Rs74,400 is over the R1 ceiling
 approver: proc.manager   # R12: Procurement Manager, up to Rs2,00,000
+over_receipt_allowance_pct: 10   # ERPNext refuses over-receipt by default (0%)
 plan:
   received_qty: {STL-ROD-20: 66}
 expect:

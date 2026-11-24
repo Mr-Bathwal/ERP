@@ -206,6 +206,10 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
     else:
         erp = demo_company()
 
+    # Settings the scenario relies on, stated rather than assumed.
+    if (pct := sc.get("over_receipt_allowance_pct")) is not None and not live:
+        erp.over_receipt_allowance_pct = float(pct)
+
     # Facts about the world the scenario needs, e.g. a supplier on hold.
     for doctype, rows in (sc.get("master_changes") or {}).items():
         if live:

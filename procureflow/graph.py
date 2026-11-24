@@ -530,6 +530,7 @@ class Agent:
                 s.reason = "submit was reached without approval"
                 st.outcome, st.detail = "refused", s.reason
                 return s
+            current = s.po
             if not s.ctx.dry_run and s.approval_digest:
                 current = self.erp.get_doc("Purchase Order", s.po.name)
                 snap = approval.snapshot(current)
@@ -545,7 +546,13 @@ class Agent:
                     s.cite("R12", "approval voided", change)
                     st.outcome, st.detail, st.rules_cited = "refused", s.reason, ["R12"]
                     return s
-            po, call = submit_doc(self.erp, s.ctx, "Purchase Order", s.po.name)
+            # Version lock: the submit carries the `modified` stamp of the
+            # order just verified, so an edit landing between that read and
+            # this write is refused by ERPNext itself.
+            locked = (str(current.get("modified") or "") or None
+                      if not s.ctx.dry_run and s.approval_digest else None)
+            po, call = submit_doc(self.erp, s.ctx, "Purchase Order", s.po.name,
+                                  expected_modified=locked)
             st.tool_calls.append({"kind": "erp", **call.__dict__})
             s.po = po if po.items else s.po
             st.erp_docs = [s.po.name]

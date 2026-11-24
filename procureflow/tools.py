@@ -234,7 +234,8 @@ def insert_exactly_once(erp: Any, doctype: str, payload: dict[str, Any], *,
     raise last
 
 
-def submit_exactly_once(erp: Any, doctype: str, name: str) -> tuple[Doc, str]:
+def submit_exactly_once(erp: Any, doctype: str, name: str, *,
+                        expected_modified: str | None = None) -> tuple[Doc, str]:
     """Submit, and if the answer is lost, ask the document rather than retrying.
 
     A submit whose response timed out may have gone through; submitting
@@ -242,10 +243,15 @@ def submit_exactly_once(erp: Any, doctype: str, name: str) -> tuple[Doc, str]:
     the document's `docstatus`, so it is read back and decides.
     """
     try:
+        if expected_modified:
+            return erp.submit(doctype, name, expected_modified=expected_modified), "submitted"
         return erp.submit(doctype, name), "submitted"
     except VerificationError:
         raise
     except ERPError as e:
+        if "modified after you have opened it" in str(e).lower():
+            raise VerificationError(f"{doctype} {name} changed between its last read and the "
+                                    f"submit, so ERPNext refused it: {e}", doctype=doctype) from e
         if not (_ambiguous(e) or "already submitted" in str(e).lower()):
             raise
         doc = erp.get_doc(doctype, name)
@@ -307,15 +313,16 @@ def create_material_request(erp: Any, ctx: RunContext, *, supplier: str,
 
 
 @_timed
-def submit_doc(erp: Any, ctx: RunContext, doctype: str, name: str) -> tuple[Doc, ToolCall]:
-    """Submit a document and confirm docstatus is 1."""
+def submit_doc(erp: Any, ctx: RunContext, doctype: str, name: str, *,
+               expected_modified: str | None = None) -> tuple[Doc, ToolCall]:
+    """Submit a document and confirm docstatus is 1, optionally version-locked."""
     _guard_writes(ctx)
     call = ToolCall(name="submit_doc", args={"doctype": doctype, "name": name})
     if ctx.dry_run:
         call.result = "skipped (dry run)"
         return Doc(doctype, name, {"name": name, "docstatus": 1}), call
-    doc, how = submit_exactly_once(erp, doctype, name)
-    call.result = f"{how} {name}"
+    doc, how = submit_exactly_once(erp, doctype, name, expected_modified=expected_modified)
+    call.result = f"{how} {name}" + (" (version-locked)" if expected_modified else "")
     call.docs = [name]
     return doc, call
 
