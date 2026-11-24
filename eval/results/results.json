@@ -1,6 +1,6 @@
 {
   "tag": "v2",
-  "generated_at": "2026-11-24 12:16:15",
+  "generated_at": "2026-11-24 12:20:59",
   "mode": "FakeERPClient",
   "extraction": [
     "heuristic"
@@ -17,8 +17,8 @@
   "avg_tokens_in": 0,
   "avg_tokens_out": 0,
   "p50_ms": 180,
-  "p95_ms": 260,
-  "total_wall_s": 4.2,
+  "p95_ms": 232,
+  "total_wall_s": 4.3,
   "by_category": {
     "flow": {
       "pass": 4,
@@ -77,7 +77,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 260,
+      "ms": 232,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "flow"
@@ -104,7 +104,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 176,
+      "ms": 169,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "flow"
@@ -129,7 +129,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 184,
+      "ms": 188,
       "erp_writes": 3,
       "extract_method": "heuristic",
       "category": "authority"
@@ -154,7 +154,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 178,
+      "ms": 181,
       "erp_writes": 3,
       "extract_method": "heuristic",
       "category": "authority"
@@ -182,7 +182,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 177,
+      "ms": 180,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "master data"
@@ -212,7 +212,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 201,
+      "ms": 198,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
@@ -269,7 +269,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 192,
+      "ms": 176,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
@@ -299,7 +299,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 178,
+      "ms": 182,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "price variance"
@@ -326,7 +326,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 178,
+      "ms": 169,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "price variance"
@@ -355,7 +355,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 174,
+      "ms": 179,
       "erp_writes": -1,
       "extract_method": "heuristic",
       "category": "duplicate detection"
@@ -384,7 +384,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 180,
+      "ms": 192,
       "erp_writes": -1,
       "extract_method": "heuristic",
       "category": "duplicate detection"
@@ -406,7 +406,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 0,
+      "ms": 6,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "master data"
@@ -433,7 +433,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 187,
+      "ms": 192,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -460,7 +460,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 309,
+      "ms": 331,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -482,7 +482,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 0,
+      "ms": 5,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -504,7 +504,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 0,
+      "ms": 5,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -532,7 +532,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 178,
+      "ms": 179,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "flow"
@@ -557,7 +557,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 180,
+      "ms": 169,
       "erp_writes": 2,
       "extract_method": "heuristic",
       "category": "authority"
@@ -586,7 +586,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 183,
+      "ms": 167,
       "erp_writes": 5,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
@@ -613,7 +613,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 191,
+      "ms": 182,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "flow"
@@ -635,7 +635,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 181,
+      "ms": 184,
       "erp_writes": 1,
       "extract_method": "heuristic",
       "category": "resilience"
@@ -658,7 +658,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 200,
+      "ms": 188,
       "erp_writes": 1,
       "extract_method": "heuristic",
       "category": "resilience"

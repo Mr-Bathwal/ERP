@@ -1,40 +1,40 @@
 {
   "tag": "v1",
-  "generated_at": "2026-11-24 12:01:37",
+  "generated_at": "2026-11-24 12:20:52",
   "mode": "FakeERPClient",
   "extraction": [
     "heuristic"
   ],
   "policy_backend": "chromadb",
-  "scenarios": 24,
-  "passed": 19,
-  "failed": 5,
-  "success_rate": 79.2,
+  "scenarios": 23,
+  "passed": 23,
+  "failed": 0,
+  "success_rate": 100.0,
   "exception_scenarios": 6,
-  "exception_detection_rate": 66.7,
-  "avg_steps": 7.3,
+  "exception_detection_rate": 100.0,
+  "avg_steps": 8.3,
   "avg_llm_calls": 0.0,
   "avg_tokens_in": 0,
   "avg_tokens_out": 0,
-  "p50_ms": 314,
-  "p95_ms": 563,
-  "total_wall_s": 8.2,
+  "p50_ms": 189,
+  "p95_ms": 279,
+  "total_wall_s": 4.6,
   "by_category": {
     "flow": {
       "pass": 4,
       "fail": 0
     },
     "authority": {
-      "pass": 2,
-      "fail": 1
+      "pass": 3,
+      "fail": 0
     },
     "master data": {
       "pass": 2,
       "fail": 0
     },
     "quantity / receipt": {
-      "pass": 1,
-      "fail": 3
+      "pass": 4,
+      "fail": 0
     },
     "price variance": {
       "pass": 2,
@@ -50,55 +50,10 @@
     },
     "resilience": {
       "pass": 2,
-      "fail": 1
+      "fail": 0
     }
   },
-  "failures": [
-    {
-      "name": "approval_rejected",
-      "expected": "escalated",
-      "actual": "escalated",
-      "why": [
-        "approval_required: expected True, got False"
-      ]
-    },
-    {
-      "name": "partial_receipt_qty_short",
-      "expected": "completed_with_exceptions",
-      "actual": "awaiting_approval",
-      "why": [
-        "state: expected completed_with_exceptions, got awaiting_approval",
-        "rule R4 was not cited (cited: R1)",
-        "exceptions: expected ['qty_short'], got none"
-      ]
-    },
-    {
-      "name": "qty_over_receipt",
-      "expected": "completed_with_exceptions",
-      "actual": "awaiting_approval",
-      "why": [
-        "state: expected completed_with_exceptions, got awaiting_approval",
-        "rule R4 was not cited (cited: R1)",
-        "exceptions: expected ['qty_over'], got none"
-      ]
-    },
-    {
-      "name": "qty_within_tolerance",
-      "expected": "completed",
-      "actual": "awaiting_approval",
-      "why": [
-        "state: expected completed, got awaiting_approval"
-      ]
-    },
-    {
-      "name": "transient_error_is_retried",
-      "expected": "completed",
-      "actual": "needs_human",
-      "why": [
-        "state: expected completed, got needs_human"
-      ]
-    }
-  ],
+  "failures": [],
   "runs": [
     {
       "name": "happy_under_threshold",
@@ -122,7 +77,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 496,
+      "ms": 279,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "flow"
@@ -149,7 +104,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 316,
+      "ms": 231,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "flow"
@@ -157,22 +112,25 @@
     {
       "name": "approval_rejected",
       "file": "03-approval-rejected.yaml",
-      "passed": false,
+      "passed": true,
       "expected_state": "escalated",
       "actual_state": "escalated",
       "reason": "rejected by the approver",
-      "failures": [
-        "approval_required: expected True, got False"
-      ],
+      "failures": [],
       "exceptions": [],
-      "rules_cited": [],
-      "documents": [],
-      "steps": 1,
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001"
+      ],
+      "steps": 6,
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 1,
-      "erp_writes": 0,
+      "ms": 201,
+      "erp_writes": 3,
       "extract_method": "heuristic",
       "category": "authority"
     },
@@ -196,7 +154,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 369,
+      "ms": 219,
       "erp_writes": 3,
       "extract_method": "heuristic",
       "category": "authority"
@@ -224,7 +182,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 285,
+      "ms": 178,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "master data"
@@ -232,85 +190,87 @@
     {
       "name": "partial_receipt_qty_short",
       "file": "06-partial-receipt-qty-short.yaml",
-      "passed": false,
+      "passed": true,
       "expected_state": "completed_with_exceptions",
-      "actual_state": "awaiting_approval",
-      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,400.00 needs approval (R1)",
-      "failures": [
-        "state: expected completed_with_exceptions, got awaiting_approval",
-        "rule R4 was not cited (cited: R1)",
-        "exceptions: expected ['qty_short'], got none"
+      "actual_state": "completed_with_exceptions",
+      "reason": "qty_short x1",
+      "failures": [],
+      "exceptions": [
+        "qty_short"
       ],
-      "exceptions": [],
       "rules_cited": [
-        "R1"
+        "R1",
+        "R4"
       ],
       "documents": [
         "MAT-MR-2026-00001",
-        "PUR-ORD-2026-00001"
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
       ],
-      "steps": 6,
+      "steps": 11,
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 277,
-      "erp_writes": 3,
+      "ms": 189,
+      "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
     },
     {
       "name": "qty_over_receipt",
       "file": "07-qty-over.yaml",
-      "passed": false,
+      "passed": true,
       "expected_state": "completed_with_exceptions",
-      "actual_state": "awaiting_approval",
-      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,400.00 needs approval (R1)",
-      "failures": [
-        "state: expected completed_with_exceptions, got awaiting_approval",
-        "rule R4 was not cited (cited: R1)",
-        "exceptions: expected ['qty_over'], got none"
+      "actual_state": "completed_with_exceptions",
+      "reason": "qty_over x1",
+      "failures": [],
+      "exceptions": [
+        "qty_over"
       ],
-      "exceptions": [],
       "rules_cited": [
-        "R1"
+        "R1",
+        "R4"
       ],
       "documents": [
         "MAT-MR-2026-00001",
-        "PUR-ORD-2026-00001"
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
       ],
-      "steps": 6,
+      "steps": 11,
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 296,
-      "erp_writes": 3,
+      "ms": 180,
+      "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
     },
     {
       "name": "qty_within_tolerance",
       "file": "08-qty-within-tolerance.yaml",
-      "passed": false,
+      "passed": true,
       "expected_state": "completed",
-      "actual_state": "awaiting_approval",
-      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,400.00 needs approval (R1)",
-      "failures": [
-        "state: expected completed, got awaiting_approval"
-      ],
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
       "exceptions": [],
       "rules_cited": [
         "R1"
       ],
       "documents": [
         "MAT-MR-2026-00001",
-        "PUR-ORD-2026-00001"
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
       ],
-      "steps": 6,
+      "steps": 11,
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 320,
-      "erp_writes": 3,
+      "ms": 241,
+      "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
     },
@@ -339,7 +299,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 314,
+      "ms": 209,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "price variance"
@@ -366,7 +326,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 301,
+      "ms": 205,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "price variance"
@@ -395,7 +355,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 275,
+      "ms": 196,
       "erp_writes": -1,
       "extract_method": "heuristic",
       "category": "duplicate detection"
@@ -424,7 +384,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 331,
+      "ms": 184,
       "erp_writes": -1,
       "extract_method": "heuristic",
       "category": "duplicate detection"
@@ -446,7 +406,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 1,
+      "ms": 7,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "master data"
@@ -473,7 +433,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 252,
+      "ms": 184,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -500,7 +460,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 468,
+      "ms": 454,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -522,7 +482,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 0,
+      "ms": 5,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -544,7 +504,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 0,
+      "ms": 7,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "extraction"
@@ -572,7 +532,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 257,
+      "ms": 193,
       "erp_writes": 7,
       "extract_method": "heuristic",
       "category": "flow"
@@ -597,7 +557,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 362,
+      "ms": 194,
       "erp_writes": 2,
       "extract_method": "heuristic",
       "category": "authority"
@@ -626,7 +586,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 344,
+      "ms": 179,
       "erp_writes": 5,
       "extract_method": "heuristic",
       "category": "quantity / receipt"
@@ -653,7 +613,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 415,
+      "ms": 163,
       "erp_writes": 0,
       "extract_method": "heuristic",
       "category": "flow"
@@ -675,7 +635,7 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 489,
+      "ms": 169,
       "erp_writes": 1,
       "extract_method": "heuristic",
       "category": "resilience"
@@ -698,34 +658,8 @@
       "llm_calls": 0,
       "tokens_in": 0,
       "tokens_out": 0,
-      "ms": 876,
+      "ms": 176,
       "erp_writes": 1,
-      "extract_method": "heuristic",
-      "category": "resilience"
-    },
-    {
-      "name": "transient_error_is_retried",
-      "file": "24-transient-5xx-retry.yaml",
-      "passed": false,
-      "expected_state": "completed",
-      "actual_state": "needs_human",
-      "reason": "the ERP refused: Internal Server Error",
-      "failures": [
-        "state: expected completed, got needs_human"
-      ],
-      "exceptions": [],
-      "rules_cited": [
-        "R1"
-      ],
-      "documents": [
-        "MAT-MR-2026-00001"
-      ],
-      "steps": 5,
-      "llm_calls": 0,
-      "tokens_in": 0,
-      "tokens_out": 0,
-      "ms": 563,
-      "erp_writes": 3,
       "extract_method": "heuristic",
       "category": "resilience"
     }

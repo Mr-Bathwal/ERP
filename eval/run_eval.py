@@ -215,7 +215,11 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
 
         erp.insert = drifting                                    # type: ignore[assignment]
 
-    agent = Agent(erp, policy=policy, numbers=read_numbers(policy.rules))
+    # Without trace_db the Tracer buffers and never writes, so the
+    # harness produced no monitoring evidence at all and the dashboard
+    # had nothing to show per scenario.
+    agent = Agent(erp, policy=policy, numbers=read_numbers(policy.rules),
+                  trace_db=settings.trace_db)
     plan = RunPlan(**(sc.get("plan") or {}))
 
     # R5 needs a prior invoice to collide with, so the scenario runs twice.

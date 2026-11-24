@@ -19,3 +19,6 @@ out/
 # because the README cites their numbers and a reader must be able to check.
 eval/results/traces.sqlite
 eval/results/paused/
+
+# Local agent/editor config
+.claude/
