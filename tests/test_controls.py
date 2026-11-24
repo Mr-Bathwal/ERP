@@ -937,3 +937,45 @@ def test_a_document_gstin_that_fails_its_check_stops_the_run(agent, tmp_path):
     p.write_text(text.replace("Hi,", "Hi,\nGSTIN 29AABCB4321K1Z2\n"), encoding="utf-8")
     s, _ = agent.run(str(p), today=TODAY)
     assert s.state is RunState.NEEDS_HUMAN and "check character" in s.reason
+
+
+# ---------------------------------------------------------------------------
+# R16: exceptions are holds in ERPNext, written with the invoice, read back
+# ---------------------------------------------------------------------------
+
+
+def test_a_price_variance_lands_on_the_invoice_as_a_hold_citing_the_rule(agent):
+    from procureflow.graph import RunPlan
+    s, _ = agent.run(sample("req-price-variance.txt"),
+                     plan=RunPlan(invoice_rates={"LUB-GRS-EP2": 4700}), today=TODAY)
+    assert s.state is RunState.COMPLETED_WITH_EXCEPTIONS
+    assert s.invoice.get("on_hold") == 1
+    assert "R3 price_variance LUB-GRS-EP2" in s.invoice.get("hold_comment")
+
+
+def test_a_clean_invoice_is_not_held(agent):
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.COMPLETED and s.invoice.get("on_hold") == 0
+
+
+def test_a_server_that_drops_the_hold_is_caught_by_the_read_back(agent, erp):
+    from procureflow.graph import RunPlan
+    original = erp._derive
+
+    def dropping(doctype, payload):
+        row = original(doctype, payload)
+        if doctype == "Purchase Invoice":
+            row["on_hold"] = 0
+        return row
+
+    erp._derive = dropping
+    s, _ = agent.run(sample("req-price-variance.txt"),
+                     plan=RunPlan(invoice_rates={"LUB-GRS-EP2": 4700}), today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN and "on_hold" in s.reason
+
+
+def test_the_agent_can_place_a_hold_but_has_no_way_to_release_one():
+    from procureflow.erp.client import ALLOWED_METHODS
+    from procureflow.tools import TOOLS
+    assert not any("hold" in t or "release" in t or "unblock" in t for t in TOOLS)
+    assert not any("block" in m or "hold" in m for m in ALLOWED_METHODS)

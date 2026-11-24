@@ -491,7 +491,7 @@ def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
                             bill_no: str, rates: dict[str, float] | None = None,
                             qty: dict[str, float] | None = None,
                             extra_lines: list[dict[str, Any]] | None = None,
-                            ) -> tuple[Doc, ToolCall]:
+                            hold: Any = None) -> tuple[Doc, ToolCall]:
     """Record a Purchase Invoice, optionally differing from the PO.
 
     `rates`, `qty` and `extra_lines` are how variance scenarios are
@@ -529,6 +529,14 @@ def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
             "item_code": extra["item_code"], "qty": float(extra.get("qty", 1)),
             "rate": float(extra.get("rate", 0)), "uom": extra.get("uom", "Nos")})
 
+    # R16: the match runs on the invoice *before* it is written, and any
+    # exception goes into ERPNext as a hold -- an exception that lives only
+    # in a spreadsheet does not stop a payment run.
+    on_hold, comment = hold(payload) if hold else (0, "")
+    payload["on_hold"] = int(on_hold)
+    if on_hold:
+        payload["hold_comment"] = comment
+
     call = ToolCall(name="create_purchase_invoice",
                     args={"po": po.name, "bill_no": bill_no, "route": route})
     if ctx.dry_run:
@@ -539,7 +547,9 @@ def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
 
     doc, how = insert_exactly_once(erp, "Purchase Invoice", payload,
                                    key=idempotency_key(ctx, "pinv"),
-                                   verify={"supplier": po.get("supplier"), "bill_no": bill_no})
+                                   verify={"supplier": po.get("supplier"), "bill_no": bill_no,
+                                           "on_hold": int(on_hold),
+                                           **({"hold_comment": comment} if on_hold else {})})
     call.result = f"{how} {doc.name} ({route})"
     call.docs = [doc.name]
     return doc, call

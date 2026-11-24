@@ -311,6 +311,21 @@ related orders are listed for the approver.
 
 ---
 
+## R16 — Exceptions are holds in ERPNext
+
+Every exception the three-way match raises is written onto the Purchase
+Invoice in ERPNext as a **hold** (`on_hold`, with each rule id, exception
+and variance in `hold_comment`), when the invoice is created, and verified
+by reading it back. The agent places holds; it never releases one. Releasing
+a hold is a person's decision, made in ERPNext.
+
+> **Why.** An exception that lives only in a report or a spreadsheet does not
+> stop a payment run: anyone opening the invoice in ERPNext would see an
+> ordinary draft. ERPNext keeps a held invoice out of payment selection, so
+> the hold is the control and the report is the explanation.
+
+---
+
 ## Rule summary
 
 | Rule | Subject | Threshold | Effect when breached |
@@ -330,3 +345,4 @@ related orders are listed for the approver.
 | R13 | Untrusted documents | instructions, hidden text < 2 pt, payment change, ungrounded value | quarantine / escalate |
 | R14 | Price vs list | unpriced line, or above list beyond R3 | price from list / approval required |
 | R15 | Split orders | same supplier, 7 days, combined > R1 | approval required |
+| R16 | Exceptions as holds | any match exception | invoice on hold in ERPNext, never released by the agent |

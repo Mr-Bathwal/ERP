@@ -614,33 +614,64 @@ class Agent:
                 st.outcome, st.detail, st.rules_cited = "blocked", s.reason, ["R5", "R8"]
                 return s
 
+            def hold(payload: dict[str, Any]) -> tuple[int, str]:
+                return self._hold_for(s, payload, bill_no, ledger)
+
             inv, call = create_purchase_invoice(
                 self.erp, s.ctx, po=s.po, bill_no=bill_no,
                 rates=s.plan.invoice_rates, qty=s.plan.invoice_qty,
-                extra_lines=s.plan.invoice_extra_lines)
+                extra_lines=s.plan.invoice_extra_lines, hold=hold)
             st.tool_calls.append({"kind": "erp", **call.__dict__})
             s.invoice = inv
             tr.invoice_name = inv.name
             st.erp_docs = [inv.name]
             st.detail = f"Purchase Invoice {inv.name} for {bill_no}"
 
-            # R5's second net, run against the stored invoice's own total.
-            if not s.ctx.dry_run:
-                amount = paise(inv.get("total") if inv.get("total") is not None
-                               else inv.get("grand_total"))
-                s.possible_duplicates = find_possible_duplicates(
-                    s.request.supplier, bill_no, amount,
-                    str(inv.get("posting_date") or s.ctx.today), ledger,
-                    window_days=self.numbers.duplicate_window_days, exclude=inv.name)
-                if s.possible_duplicates:
-                    st.detail += ("; possible duplicate of "
-                                  + ", ".join(str(d.get("name")) for d in s.possible_duplicates))
+            if s.possible_duplicates:
+                st.detail += ("; possible duplicate of "
+                              + ", ".join(str(d.get("name")) for d in s.possible_duplicates))
+            if int(inv.get("on_hold") or 0):
+                st.detail += "; placed on hold in ERPNext (R16)"
         return s
+
+    def _hold_for(self, s: State, payload: dict[str, Any], bill_no: str,
+                  ledger: list[dict[str, Any]]) -> tuple[int, str]:
+        """R16: match the invoice about to be written, and say whether to hold it.
+
+        Pure: the match is a function of documents, so it runs on the
+        payload before the insert. The comment is deterministic -- rule id,
+        exception and variance -- so the read-back can compare it exactly.
+        """
+        amount = sum(line_paise(paise(i.get("rate")), i.get("qty"))
+                     for i in payload.get("items") or [])
+        s.possible_duplicates = find_possible_duplicates(
+            s.request.supplier, bill_no, amount, str(s.ctx.today), ledger,
+            window_days=self.numbers.duplicate_window_days)
+        draft = Doc("Purchase Invoice", "(draft)", payload)
+        pre = three_way_match(s.po, s.receipt, draft, tol=self.tol,
+                              possible_duplicates=s.possible_duplicates)
+        if not pre.exceptions:
+            return 0, ""
+        parts = [f"{e.rule_id} {e.type.value} {e.item_code} {e.variance}".strip()
+                 for e in pre.exceptions]
+        return 1, (f"ProcureFlow hold (policy {s.policy_version}): " + "; ".join(parts))[:900]
 
     def n_three_way_match(self, s: State, tr: Tracer) -> State:
         with tr.step("three_way_match") as st:
             s.match = three_way_match(s.po, s.receipt, s.invoice, tol=self.tol,
                                       possible_duplicates=s.possible_duplicates)
+            # R16, read back: the hold in ERPNext must agree with the match on
+            # the stored invoice. A clean match on a held invoice, or an
+            # exception on an unheld one, means what was written is not what
+            # was decided.
+            if s.invoice is not None and not s.ctx.dry_run:
+                held = int(s.invoice.get("on_hold") or 0)
+                if held != (1 if s.match.exceptions else 0):
+                    raise VerificationError(
+                        f"Purchase Invoice {s.invoice.name} is {'on' if held else 'not on'} hold "
+                        f"but the match on the stored invoice found "
+                        f"{', '.join(sorted(s.match.types)) or 'nothing'}",
+                        doctype="Purchase Invoice")
             for e in s.match.exceptions:
                 s.cite(e.rule_id, e.type.value, e.detail)
             st.rules_cited = s.match.rules_cited
