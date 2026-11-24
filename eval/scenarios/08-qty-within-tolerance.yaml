@@ -1,0 +1,9 @@
+name: qty_within_tolerance
+input: seed/samples/req-short-delivery.txt
+why: 59 of 60 is inside R4's greater-of rule and must NOT raise an exception.
+approve: true   # Rs74,400 is over the R1 ceiling
+plan:
+  received_qty: {STL-ROD-20: 59}
+expect:
+  state: completed
+  exceptions: []

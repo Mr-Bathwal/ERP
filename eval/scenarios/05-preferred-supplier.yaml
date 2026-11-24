@@ -1,0 +1,7 @@
+name: preferred_supplier_noted
+input: seed/samples/req-nonpreferred.txt
+why: R2 proposes a preferred supplier but must never substitute silently.
+expect:
+  state: completed
+  rules_cited: [R1, R2]
+  substitution_noted: true

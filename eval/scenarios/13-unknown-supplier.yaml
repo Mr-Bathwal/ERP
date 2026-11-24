@@ -1,0 +1,7 @@
+name: unknown_supplier_escalated
+input: seed/samples/req-unknown-supplier.txt
+why: R6. The agent must not create the supplier and must not pick the nearest name.
+expect:
+  state: escalated
+  rules_cited: [R6]
+  no_documents: true

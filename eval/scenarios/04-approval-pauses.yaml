@@ -1,0 +1,8 @@
+name: approval_pauses_without_answer
+input: seed/samples/req-over-threshold.txt
+why: With no answer the run must stop at the gate and stay stopped.
+approve: null
+expect:
+  state: awaiting_approval
+  approval_required: true
+  not_submitted: true

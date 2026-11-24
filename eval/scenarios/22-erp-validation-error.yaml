@@ -1,0 +1,11 @@
+name: erp_validation_error_handled
+input: seed/samples/req-happy.txt
+why: A 417 from ERPNext must become a stated reason, never a stack trace.
+inject_fault:
+  doctype: Material Request
+  op: insert
+  status: 417
+  message: "Schedule Date cannot be before Transaction Date"
+expect:
+  state: needs_human
+  reason_contains: Schedule Date

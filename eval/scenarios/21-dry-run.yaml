@@ -1,0 +1,7 @@
+name: dry_run_writes_nothing
+input: seed/samples/req-happy.txt
+why: The safety flag must be provably inert, not merely intended to be.
+dry_run: true
+expect:
+  state: dry_run
+  erp_writes: 0

@@ -1,0 +1,8 @@
+name: approval_rejected
+input: seed/samples/req-over-threshold.txt
+why: A rejected approval must stop the run, not fall through to submission.
+approve: false
+expect:
+  state: escalated
+  approval_required: true
+  not_submitted: true

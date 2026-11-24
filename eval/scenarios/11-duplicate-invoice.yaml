@@ -1,0 +1,10 @@
+name: duplicate_invoice_blocked
+input: seed/samples/req-happy.txt
+why: The same supplier invoice number twice. R5 blocks it, and R8 says never automatic.
+repeat_with_same_bill_no: true
+plan:
+  supplier_invoice_no: BFPL/2026/0042
+expect:
+  state: blocked
+  exceptions: [duplicate_invoice]
+  rules_cited: [R5]

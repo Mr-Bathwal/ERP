@@ -1,0 +1,7 @@
+name: expedite_flag
+input: seed/samples/req-expedite.txt
+why: R7 flags a short lead time but must not block the order.
+expect:
+  state: completed
+  rules_cited: [R7]
+  expedite: true

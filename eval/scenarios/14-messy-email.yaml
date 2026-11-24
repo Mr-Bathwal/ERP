@@ -1,0 +1,6 @@
+name: messy_email_typos_and_units
+input: seed/samples/req-messy-typos.txt
+why: Lowercase, misspelt, mixed units. Resolution should still land both lines.
+expect:
+  state: completed
+  items_resolved: 2

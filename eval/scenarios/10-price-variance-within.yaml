@@ -1,0 +1,8 @@
+name: price_variance_within_tolerance
+input: seed/samples/req-price-variance.txt
+why: Billed 4400. 80 is inside the 216 that 5% of 4320 allows, so it passes.
+plan:
+  invoice_rates: {LUB-GRS-EP2: 4400}
+expect:
+  state: completed
+  exceptions: []

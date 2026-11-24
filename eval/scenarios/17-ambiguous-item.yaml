@@ -1,0 +1,6 @@
+name: ambiguous_item_needs_human
+input: seed/samples/req-ambiguous-item.txt
+why: "'hex bolt' matches M8 and M10 equally. Picking one is a coin flip."
+expect:
+  state: needs_human
+  no_documents: true

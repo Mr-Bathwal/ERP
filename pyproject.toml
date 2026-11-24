@@ -1,0 +1,26 @@
+[project]
+name = "procureflow"
+version = "1.0.0"
+description = "An AI agent that runs procure-to-pay inside a real ERPNext instance"
+requires-python = ">=3.11"
+
+[project.scripts]
+procureflow = "procureflow.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "dashboard", "eval/results"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+# UP042: `str, Enum` is deliberate -- these values are serialised into JSON
+#        traces and compared against YAML strings, and StrEnum changes how
+#        `str()` renders a member.
+# SIM102/105: nested `if`s here read as a sequence of independent policy
+#        checks, which is what they are; flattening them obscures that.
+ignore = ["E501", "B008", "SIM108", "UP042", "SIM102", "SIM105"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

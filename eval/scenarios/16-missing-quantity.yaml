@@ -1,0 +1,6 @@
+name: missing_quantity_needs_human
+input: seed/samples/req-noqty.txt
+why: No quantity anywhere. The agent must stop rather than assume one.
+expect:
+  state: needs_human
+  no_documents: true

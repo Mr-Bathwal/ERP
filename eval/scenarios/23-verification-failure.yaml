@@ -1,0 +1,7 @@
+name: read_back_verification_failure
+input: seed/samples/req-happy.txt
+why: The failure this project exists to catch - stored differently from sent.
+inject_verification_drift: true
+expect:
+  state: needs_human
+  reason_contains: verification

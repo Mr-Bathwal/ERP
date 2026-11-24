@@ -1,0 +1,9 @@
+name: missing_receipt_held
+input: seed/samples/req-happy.txt
+why: An invoice with no receipt is held under R9, not rejected.
+plan:
+  skip_receipt: true
+expect:
+  state: completed_with_exceptions
+  exceptions: [missing_receipt]
+  rules_cited: [R9]

@@ -1,0 +1,9 @@
+name: happy_over_threshold
+input: seed/samples/req-over-threshold.txt
+why: Above the R1 ceiling. Must pause, and must complete once approved.
+approve: true
+expect:
+  state: completed
+  approval_required: true
+  rules_cited: [R1]
+  exceptions: []

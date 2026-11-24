@@ -1,0 +1,9 @@
+name: price_variance_breach
+input: seed/samples/req-price-variance.txt
+why: Billed 4700 against a 4320 order. 380 is over the tighter of 5% and 500.
+plan:
+  invoice_rates: {LUB-GRS-EP2: 4700}
+expect:
+  state: completed_with_exceptions
+  exceptions: [price_variance]
+  rules_cited: [R3]

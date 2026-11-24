@@ -1,0 +1,10 @@
+name: qty_over_receipt
+input: seed/samples/req-short-delivery.txt
+why: Over-receipt is an exception too; it is not a windfall.
+approve: true   # Rs74,400 is over the R1 ceiling
+plan:
+  received_qty: {STL-ROD-20: 66}
+expect:
+  state: completed_with_exceptions
+  exceptions: [qty_over]
+  rules_cited: [R4]

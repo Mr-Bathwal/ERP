@@ -1,0 +1,2653 @@
+[
+  {
+    "run_id": "b25892cca527",
+    "started_at": 1795502331.9848847,
+    "ended_at": 1795502334.6308503,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "escalated",
+    "reason": "budget not released",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "",
+    "invoice_name": "",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 190,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 68,
+        "run_id": "b25892cca527",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502331.9849007,
+        "ms": 32,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 74,
+        "run_id": "b25892cca527",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502331.9849007,
+        "ms": 32,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 69,
+        "run_id": "b25892cca527",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502332.0175188,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 75,
+        "run_id": "b25892cca527",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502332.0175188,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 70,
+        "run_id": "b25892cca527",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502332.017553,
+        "ms": 158,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 76,
+        "run_id": "b25892cca527",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502332.017553,
+        "ms": 158,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 71,
+        "run_id": "b25892cca527",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502332.1764956,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 77,
+        "run_id": "b25892cca527",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502332.1764956,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 72,
+        "run_id": "b25892cca527",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502332.1765776,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 78,
+        "run_id": "b25892cca527",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502332.1765776,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 73,
+        "run_id": "b25892cca527",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502332.1766357,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 79,
+        "run_id": "b25892cca527",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502332.1766357,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 80,
+        "run_id": "b25892cca527",
+        "seq": 7,
+        "node": "approval_gate",
+        "started_at": 1795502334.6283948,
+        "ms": 0,
+        "outcome": "rejected",
+        "detail": "budget not released",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "run_id": "413897e3ce34",
+    "started_at": 1795502327.1244454,
+    "ended_at": 1795502329.8321903,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "completed",
+    "reason": "order, receipt and invoice agree",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "MAT-PRE-2026-00001",
+    "invoice_name": "ACC-PINV-2026-00001",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 224,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 50,
+        "run_id": "413897e3ce34",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502327.1244638,
+        "ms": 41,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 56,
+        "run_id": "413897e3ce34",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502327.1244638,
+        "ms": 41,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 51,
+        "run_id": "413897e3ce34",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502327.1663866,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 57,
+        "run_id": "413897e3ce34",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502327.1663866,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 52,
+        "run_id": "413897e3ce34",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502327.1664371,
+        "ms": 183,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 58,
+        "run_id": "413897e3ce34",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502327.1664371,
+        "ms": 183,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 53,
+        "run_id": "413897e3ce34",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502327.3498302,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 59,
+        "run_id": "413897e3ce34",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502327.3498302,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 54,
+        "run_id": "413897e3ce34",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502327.3499217,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 60,
+        "run_id": "413897e3ce34",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502327.3499217,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 55,
+        "run_id": "413897e3ce34",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502327.3499858,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 61,
+        "run_id": "413897e3ce34",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502327.3499858,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 62,
+        "run_id": "413897e3ce34",
+        "seq": 7,
+        "node": "approval_gate",
+        "started_at": 1795502329.8298714,
+        "ms": 0,
+        "outcome": "approved",
+        "detail": "ok for line 2 changeover",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 63,
+        "run_id": "413897e3ce34",
+        "seq": 8,
+        "node": "submit_purchase_order",
+        "started_at": 1795502329.8298929,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Purchase Order",
+              "name": "PUR-ORD-2026-00001"
+            },
+            "result": "submitted PUR-ORD-2026-00001",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 64,
+        "run_id": "413897e3ce34",
+        "seq": 9,
+        "node": "goods_receipt",
+        "started_at": 1795502329.8299277,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Receipt MAT-PRE-2026-00001 (api)",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_receipt",
+            "args": {
+              "po": "PUR-ORD-2026-00001",
+              "route": "mapper:make_purchase_receipt",
+              "partial": false
+            },
+            "result": "created MAT-PRE-2026-00001 (mapper:make_purchase_receipt)",
+            "docs": [
+              "MAT-PRE-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Purchase Receipt",
+              "name": "MAT-PRE-2026-00001"
+            },
+            "result": "submitted MAT-PRE-2026-00001",
+            "docs": [
+              "MAT-PRE-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-PRE-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 65,
+        "run_id": "413897e3ce34",
+        "seq": 10,
+        "node": "create_purchase_invoice",
+        "started_at": 1795502329.8300083,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Invoice ACC-PINV-2026-00001 for SUP-413897",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_invoice",
+            "args": {
+              "po": "PUR-ORD-2026-00001",
+              "bill_no": "SUP-413897",
+              "route": "mapper:make_purchase_invoice"
+            },
+            "result": "created ACC-PINV-2026-00001 (mapper:make_purchase_invoice)",
+            "docs": [
+              "ACC-PINV-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "ACC-PINV-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 66,
+        "run_id": "413897e3ce34",
+        "seq": 11,
+        "node": "three_way_match",
+        "started_at": 1795502329.8301084,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "1 line(s) checked; clean",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 67,
+        "run_id": "413897e3ce34",
+        "seq": 12,
+        "node": "report",
+        "started_at": 1795502329.830173,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "order, receipt and invoice agree",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "run_id": "bf5b4f33143d",
+    "started_at": 1795502299.2948997,
+    "ended_at": 1795502299.483174,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "awaiting_approval",
+    "reason": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "",
+    "invoice_name": "",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 186,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 44,
+        "run_id": "bf5b4f33143d",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502299.2949164,
+        "ms": 35,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 45,
+        "run_id": "bf5b4f33143d",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502299.3300853,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 46,
+        "run_id": "bf5b4f33143d",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502299.3301175,
+        "ms": 151,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 47,
+        "run_id": "bf5b4f33143d",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502299.4813037,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 48,
+        "run_id": "bf5b4f33143d",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502299.4813814,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 49,
+        "run_id": "bf5b4f33143d",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502299.48144,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "run_id": "e9b48e404817",
+    "started_at": 1795502287.56171,
+    "ended_at": 1795502287.7539036,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "awaiting_approval",
+    "reason": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "",
+    "invoice_name": "",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 189,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 38,
+        "run_id": "e9b48e404817",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502287.5617287,
+        "ms": 32,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 39,
+        "run_id": "e9b48e404817",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502287.5946648,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 40,
+        "run_id": "e9b48e404817",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502287.5946932,
+        "ms": 157,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 41,
+        "run_id": "e9b48e404817",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502287.7520533,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 42,
+        "run_id": "e9b48e404817",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502287.7521312,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 43,
+        "run_id": "e9b48e404817",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502287.7521887,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "run_id": "91b82ce929fd",
+    "started_at": 1795502274.715749,
+    "ended_at": 1795502274.9016287,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "awaiting_approval",
+    "reason": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "",
+    "invoice_name": "",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 183,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 32,
+        "run_id": "91b82ce929fd",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502274.7157667,
+        "ms": 34,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 33,
+        "run_id": "91b82ce929fd",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502274.7501316,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 34,
+        "run_id": "91b82ce929fd",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502274.7501605,
+        "ms": 149,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 35,
+        "run_id": "91b82ce929fd",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502274.8999722,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 36,
+        "run_id": "91b82ce929fd",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502274.9000468,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 37,
+        "run_id": "91b82ce929fd",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502274.900103,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "run_id": "a2fb219ed6f5",
+    "started_at": 1795502271.553447,
+    "ended_at": 1795502271.7542493,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "awaiting_approval",
+    "reason": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "",
+    "invoice_name": "",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 198,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 26,
+        "run_id": "a2fb219ed6f5",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502271.5534635,
+        "ms": 32,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 27,
+        "run_id": "a2fb219ed6f5",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502271.58591,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 28,
+        "run_id": "a2fb219ed6f5",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502271.5859382,
+        "ms": 166,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 29,
+        "run_id": "a2fb219ed6f5",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502271.752484,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 30,
+        "run_id": "a2fb219ed6f5",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502271.7525606,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 31,
+        "run_id": "a2fb219ed6f5",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502271.7526193,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  },
+  {
+    "run_id": "1f0733d8a3e3",
+    "started_at": 1795502240.2041376,
+    "ended_at": 1795502242.6585176,
+    "source_file": "seed/samples/req-over-threshold.txt",
+    "scenario": "",
+    "state": "needs_human",
+    "reason": "the ERP refused: Purchase Order PUR-ORD-2026-00001 not found",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "",
+    "invoice_name": "",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 212,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 12,
+        "run_id": "1f0733d8a3e3",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502240.204153,
+        "ms": 45,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 18,
+        "run_id": "1f0733d8a3e3",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502240.204153,
+        "ms": 45,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 13,
+        "run_id": "1f0733d8a3e3",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502240.249236,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 19,
+        "run_id": "1f0733d8a3e3",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502240.249236,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 14,
+        "run_id": "1f0733d8a3e3",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502240.2492678,
+        "ms": 167,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 20,
+        "run_id": "1f0733d8a3e3",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502240.2492678,
+        "ms": 167,
+        "outcome": "ok",
+        "detail": "value 74,600.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R2",
+              "R1",
+              "R6",
+              "R3",
+              "R5",
+              "R8",
+              "R10"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R2",
+          "R1",
+          "R6",
+          "R3",
+          "R5",
+          "R8",
+          "R10"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 15,
+        "run_id": "1f0733d8a3e3",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502240.4170387,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 21,
+        "run_id": "1f0733d8a3e3",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502240.4170387,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-20"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 16,
+        "run_id": "1f0733d8a3e3",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502240.417119,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 22,
+        "run_id": "1f0733d8a3e3",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502240.417119,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,600.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 17,
+        "run_id": "1f0733d8a3e3",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502240.417176,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 23,
+        "run_id": "1f0733d8a3e3",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502240.417176,
+        "ms": 0,
+        "outcome": "paused",
+        "detail": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 24,
+        "run_id": "1f0733d8a3e3",
+        "seq": 7,
+        "node": "approval_gate",
+        "started_at": 1795502242.6563027,
+        "ms": 0,
+        "outcome": "approved",
+        "detail": "ok for line 2 changeover",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 25,
+        "run_id": "1f0733d8a3e3",
+        "seq": 8,
+        "node": "submit_purchase_order",
+        "started_at": 1795502242.6563253,
+        "ms": 0,
+        "outcome": "error",
+        "detail": "",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": "ERPError: Purchase Order PUR-ORD-2026-00001 not found"
+      }
+    ]
+  },
+  {
+    "run_id": "cd8fb566cc28",
+    "started_at": 1795502231.0040197,
+    "ended_at": 1795502231.2194445,
+    "source_file": "seed/samples/req-short-delivery.txt",
+    "scenario": "",
+    "state": "completed",
+    "reason": "order, receipt and invoice agree",
+    "dry_run": 0,
+    "receipt_mode": "api",
+    "extract_method": "heuristic",
+    "po_name": "PUR-ORD-2026-00001",
+    "receipt_name": "MAT-PRE-2026-00001",
+    "invoice_name": "ACC-PINV-2026-00001",
+    "exceptions": [],
+    "rules_cited": [
+      "R1"
+    ],
+    "total_ms": 186,
+    "llm_calls": 0,
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "steps": [
+      {
+        "id": 1,
+        "run_id": "cd8fb566cc28",
+        "seq": 1,
+        "node": "extract",
+        "started_at": 1795502231.0040412,
+        "ms": 32,
+        "outcome": "ok",
+        "detail": "1 line(s) via heuristic; supplier 'Deccan Steel & Alloys'",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 2,
+        "run_id": "cd8fb566cc28",
+        "seq": 2,
+        "node": "validate_masters",
+        "started_at": 1795502231.03672,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "supplier 'Deccan Steel & Alloys' exists; 1 item(s) resolved",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "supplier_exists",
+            "args": {
+              "supplier": "Deccan Steel & Alloys"
+            },
+            "result": "found",
+            "docs": [],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "Deccan Steel & Alloys"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 3,
+        "run_id": "cd8fb566cc28",
+        "seq": 3,
+        "node": "policy_check",
+        "started_at": 1795502231.0367525,
+        "ms": 154,
+        "outcome": "ok",
+        "detail": "value 74,400.00; approval required",
+        "tool_calls": [
+          {
+            "kind": "retrieval",
+            "name": "policy.retrieve",
+            "backend": "chromadb",
+            "returned": [
+              "R1",
+              "R2",
+              "R3",
+              "R10",
+              "R5",
+              "R6",
+              "R8"
+            ]
+          }
+        ],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1",
+          "R2",
+          "R3",
+          "R10",
+          "R5",
+          "R6",
+          "R8"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 4,
+        "run_id": "cd8fb566cc28",
+        "seq": 4,
+        "node": "create_material_request",
+        "started_at": 1795502231.191259,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Material Request MAT-MR-2026-00001 created and submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_material_request",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "lines": 1,
+              "schedule_date": "2026-12-21"
+            },
+            "result": "created MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Material Request",
+              "name": "MAT-MR-2026-00001"
+            },
+            "result": "submitted MAT-MR-2026-00001",
+            "docs": [
+              "MAT-MR-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-MR-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 5,
+        "run_id": "cd8fb566cc28",
+        "seq": 5,
+        "node": "create_purchase_order",
+        "started_at": 1795502231.1913543,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 drafted, not yet submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_order",
+            "args": {
+              "supplier": "Deccan Steel & Alloys",
+              "route": "mapper:make_purchase_order",
+              "value": "74,400.00"
+            },
+            "result": "created PUR-ORD-2026-00001 (mapper:make_purchase_order)",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 6,
+        "run_id": "cd8fb566cc28",
+        "seq": 6,
+        "node": "approval_gate",
+        "started_at": 1795502231.1914203,
+        "ms": 0,
+        "outcome": "approved",
+        "detail": "approved",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [
+          "R1"
+        ],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 7,
+        "run_id": "cd8fb566cc28",
+        "seq": 7,
+        "node": "submit_purchase_order",
+        "started_at": 1795502231.1914294,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Order PUR-ORD-2026-00001 submitted",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Purchase Order",
+              "name": "PUR-ORD-2026-00001"
+            },
+            "result": "submitted PUR-ORD-2026-00001",
+            "docs": [
+              "PUR-ORD-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "PUR-ORD-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 8,
+        "run_id": "cd8fb566cc28",
+        "seq": 8,
+        "node": "goods_receipt",
+        "started_at": 1795502231.1914423,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Receipt MAT-PRE-2026-00001 (api)",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_receipt",
+            "args": {
+              "po": "PUR-ORD-2026-00001",
+              "route": "mapper:make_purchase_receipt",
+              "partial": false
+            },
+            "result": "created MAT-PRE-2026-00001 (mapper:make_purchase_receipt)",
+            "docs": [
+              "MAT-PRE-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          },
+          {
+            "kind": "erp",
+            "name": "submit_doc",
+            "args": {
+              "doctype": "Purchase Receipt",
+              "name": "MAT-PRE-2026-00001"
+            },
+            "result": "submitted MAT-PRE-2026-00001",
+            "docs": [
+              "MAT-PRE-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "MAT-PRE-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 9,
+        "run_id": "cd8fb566cc28",
+        "seq": 9,
+        "node": "create_purchase_invoice",
+        "started_at": 1795502231.1914878,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "Purchase Invoice ACC-PINV-2026-00001 for SUP-CD8FB5",
+        "tool_calls": [
+          {
+            "kind": "erp",
+            "name": "create_purchase_invoice",
+            "args": {
+              "po": "PUR-ORD-2026-00001",
+              "bill_no": "SUP-CD8FB5",
+              "route": "mapper:make_purchase_invoice"
+            },
+            "result": "created ACC-PINV-2026-00001 (mapper:make_purchase_invoice)",
+            "docs": [
+              "ACC-PINV-2026-00001"
+            ],
+            "ms": 0,
+            "ok": true,
+            "error": ""
+          }
+        ],
+        "erp_docs": [
+          "ACC-PINV-2026-00001"
+        ],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 10,
+        "run_id": "cd8fb566cc28",
+        "seq": 10,
+        "node": "three_way_match",
+        "started_at": 1795502231.191573,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "1 line(s) checked; clean",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      },
+      {
+        "id": 11,
+        "run_id": "cd8fb566cc28",
+        "seq": 11,
+        "node": "report",
+        "started_at": 1795502231.191608,
+        "ms": 0,
+        "outcome": "ok",
+        "detail": "order, receipt and invoice agree",
+        "tool_calls": [],
+        "erp_docs": [],
+        "rules_cited": [],
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "error": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,733 @@
+{
+  "tag": "v1",
+  "generated_at": "2026-11-24 12:01:37",
+  "mode": "FakeERPClient",
+  "extraction": [
+    "heuristic"
+  ],
+  "policy_backend": "chromadb",
+  "scenarios": 24,
+  "passed": 19,
+  "failed": 5,
+  "success_rate": 79.2,
+  "exception_scenarios": 6,
+  "exception_detection_rate": 66.7,
+  "avg_steps": 7.3,
+  "avg_llm_calls": 0.0,
+  "avg_tokens_in": 0,
+  "avg_tokens_out": 0,
+  "p50_ms": 314,
+  "p95_ms": 563,
+  "total_wall_s": 8.2,
+  "by_category": {
+    "flow": {
+      "pass": 4,
+      "fail": 0
+    },
+    "authority": {
+      "pass": 2,
+      "fail": 1
+    },
+    "master data": {
+      "pass": 2,
+      "fail": 0
+    },
+    "quantity / receipt": {
+      "pass": 1,
+      "fail": 3
+    },
+    "price variance": {
+      "pass": 2,
+      "fail": 0
+    },
+    "duplicate detection": {
+      "pass": 2,
+      "fail": 0
+    },
+    "extraction": {
+      "pass": 4,
+      "fail": 0
+    },
+    "resilience": {
+      "pass": 2,
+      "fail": 1
+    }
+  },
+  "failures": [
+    {
+      "name": "approval_rejected",
+      "expected": "escalated",
+      "actual": "escalated",
+      "why": [
+        "approval_required: expected True, got False"
+      ]
+    },
+    {
+      "name": "partial_receipt_qty_short",
+      "expected": "completed_with_exceptions",
+      "actual": "awaiting_approval",
+      "why": [
+        "state: expected completed_with_exceptions, got awaiting_approval",
+        "rule R4 was not cited (cited: R1)",
+        "exceptions: expected ['qty_short'], got none"
+      ]
+    },
+    {
+      "name": "qty_over_receipt",
+      "expected": "completed_with_exceptions",
+      "actual": "awaiting_approval",
+      "why": [
+        "state: expected completed_with_exceptions, got awaiting_approval",
+        "rule R4 was not cited (cited: R1)",
+        "exceptions: expected ['qty_over'], got none"
+      ]
+    },
+    {
+      "name": "qty_within_tolerance",
+      "expected": "completed",
+      "actual": "awaiting_approval",
+      "why": [
+        "state: expected completed, got awaiting_approval"
+      ]
+    },
+    {
+      "name": "transient_error_is_retried",
+      "expected": "completed",
+      "actual": "needs_human",
+      "why": [
+        "state: expected completed, got needs_human"
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "name": "happy_under_threshold",
+      "file": "01-happy-under-threshold.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 496,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "flow"
+    },
+    {
+      "name": "happy_over_threshold",
+      "file": "02-happy-over-threshold.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 316,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "flow"
+    },
+    {
+      "name": "approval_rejected",
+      "file": "03-approval-rejected.yaml",
+      "passed": false,
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "reason": "rejected by the approver",
+      "failures": [
+        "approval_required: expected True, got False"
+      ],
+      "exceptions": [],
+      "rules_cited": [],
+      "documents": [],
+      "steps": 1,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 1,
+      "erp_writes": 0,
+      "extract_method": "heuristic",
+      "category": "authority"
+    },
+    {
+      "name": "approval_pauses_without_answer",
+      "file": "04-approval-pauses.yaml",
+      "passed": true,
+      "expected_state": "awaiting_approval",
+      "actual_state": "awaiting_approval",
+      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,600.00 needs approval (R1)",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001"
+      ],
+      "steps": 6,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 369,
+      "erp_writes": 3,
+      "extract_method": "heuristic",
+      "category": "authority"
+    },
+    {
+      "name": "preferred_supplier_noted",
+      "file": "05-preferred-supplier.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1",
+        "R2"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 285,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "master data"
+    },
+    {
+      "name": "partial_receipt_qty_short",
+      "file": "06-partial-receipt-qty-short.yaml",
+      "passed": false,
+      "expected_state": "completed_with_exceptions",
+      "actual_state": "awaiting_approval",
+      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,400.00 needs approval (R1)",
+      "failures": [
+        "state: expected completed_with_exceptions, got awaiting_approval",
+        "rule R4 was not cited (cited: R1)",
+        "exceptions: expected ['qty_short'], got none"
+      ],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001"
+      ],
+      "steps": 6,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 277,
+      "erp_writes": 3,
+      "extract_method": "heuristic",
+      "category": "quantity / receipt"
+    },
+    {
+      "name": "qty_over_receipt",
+      "file": "07-qty-over.yaml",
+      "passed": false,
+      "expected_state": "completed_with_exceptions",
+      "actual_state": "awaiting_approval",
+      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,400.00 needs approval (R1)",
+      "failures": [
+        "state: expected completed_with_exceptions, got awaiting_approval",
+        "rule R4 was not cited (cited: R1)",
+        "exceptions: expected ['qty_over'], got none"
+      ],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001"
+      ],
+      "steps": 6,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 296,
+      "erp_writes": 3,
+      "extract_method": "heuristic",
+      "category": "quantity / receipt"
+    },
+    {
+      "name": "qty_within_tolerance",
+      "file": "08-qty-within-tolerance.yaml",
+      "passed": false,
+      "expected_state": "completed",
+      "actual_state": "awaiting_approval",
+      "reason": "Purchase Order PUR-ORD-2026-00001 for 74,400.00 needs approval (R1)",
+      "failures": [
+        "state: expected completed, got awaiting_approval"
+      ],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001"
+      ],
+      "steps": 6,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 320,
+      "erp_writes": 3,
+      "extract_method": "heuristic",
+      "category": "quantity / receipt"
+    },
+    {
+      "name": "price_variance_breach",
+      "file": "09-price-variance-breach.yaml",
+      "passed": true,
+      "expected_state": "completed_with_exceptions",
+      "actual_state": "completed_with_exceptions",
+      "reason": "price_variance x1",
+      "failures": [],
+      "exceptions": [
+        "price_variance"
+      ],
+      "rules_cited": [
+        "R1",
+        "R3"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 314,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "price variance"
+    },
+    {
+      "name": "price_variance_within_tolerance",
+      "file": "10-price-variance-within.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 301,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "price variance"
+    },
+    {
+      "name": "duplicate_invoice_blocked",
+      "file": "11-duplicate-invoice.yaml",
+      "passed": true,
+      "expected_state": "blocked",
+      "actual_state": "blocked",
+      "reason": "supplier invoice BFPL/2026/0042 is already booked as ACC-PINV-2026-00001",
+      "failures": [],
+      "exceptions": [
+        "duplicate_invoice"
+      ],
+      "rules_cited": [
+        "R1",
+        "R5"
+      ],
+      "documents": [
+        "MAT-MR-2026-00002",
+        "PUR-ORD-2026-00002",
+        "MAT-PRE-2026-00002"
+      ],
+      "steps": 9,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 275,
+      "erp_writes": -1,
+      "extract_method": "heuristic",
+      "category": "duplicate detection"
+    },
+    {
+      "name": "duplicate_invoice_different_punctuation",
+      "file": "12-duplicate-punctuation.yaml",
+      "passed": true,
+      "expected_state": "blocked",
+      "actual_state": "blocked",
+      "reason": "supplier invoice inv 0042 is already booked as ACC-PINV-2026-00001",
+      "failures": [],
+      "exceptions": [
+        "duplicate_invoice"
+      ],
+      "rules_cited": [
+        "R1",
+        "R5"
+      ],
+      "documents": [
+        "MAT-MR-2026-00002",
+        "PUR-ORD-2026-00002",
+        "MAT-PRE-2026-00002"
+      ],
+      "steps": 9,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 331,
+      "erp_writes": -1,
+      "extract_method": "heuristic",
+      "category": "duplicate detection"
+    },
+    {
+      "name": "unknown_supplier_escalated",
+      "file": "13-unknown-supplier.yaml",
+      "passed": true,
+      "expected_state": "escalated",
+      "actual_state": "escalated",
+      "reason": "supplier 'Vindhya Tooling Solutions Pvt Ltd' is not in the master; closest existing: Kaveri Polymers Ltd",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R6"
+      ],
+      "documents": [],
+      "steps": 2,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 1,
+      "erp_writes": 0,
+      "extract_method": "heuristic",
+      "category": "master data"
+    },
+    {
+      "name": "messy_email_typos_and_units",
+      "file": "14-messy-email.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 252,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "extraction"
+    },
+    {
+      "name": "multi_item_pdf_quote",
+      "file": "15-multi-item-pdf.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 468,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "extraction"
+    },
+    {
+      "name": "missing_quantity_needs_human",
+      "file": "16-missing-quantity.yaml",
+      "passed": true,
+      "expected_state": "needs_human",
+      "actual_state": "needs_human",
+      "reason": "no items found",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R8"
+      ],
+      "documents": [],
+      "steps": 1,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 0,
+      "erp_writes": 0,
+      "extract_method": "heuristic",
+      "category": "extraction"
+    },
+    {
+      "name": "ambiguous_item_needs_human",
+      "file": "17-ambiguous-item.yaml",
+      "passed": true,
+      "expected_state": "needs_human",
+      "actual_state": "needs_human",
+      "reason": "'hex bolt' did not resolve to a catalogue item",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R8"
+      ],
+      "documents": [],
+      "steps": 1,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 0,
+      "erp_writes": 0,
+      "extract_method": "heuristic",
+      "category": "extraction"
+    },
+    {
+      "name": "expedite_flag",
+      "file": "18-expedite.yaml",
+      "passed": true,
+      "expected_state": "completed",
+      "actual_state": "completed",
+      "reason": "order, receipt and invoice agree",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1",
+        "R7"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "MAT-PRE-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 257,
+      "erp_writes": 7,
+      "extract_method": "heuristic",
+      "category": "flow"
+    },
+    {
+      "name": "run_ceiling_blocked",
+      "file": "19-run-ceiling.yaml",
+      "passed": true,
+      "expected_state": "blocked",
+      "actual_state": "blocked",
+      "reason": "R10: this run would create a Purchase Order of 7,46,000.00, above the 5,00,000.00 ceiling for automated runs. Raise it by hand.",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1",
+        "R10"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001"
+      ],
+      "steps": 5,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 362,
+      "erp_writes": 2,
+      "extract_method": "heuristic",
+      "category": "authority"
+    },
+    {
+      "name": "missing_receipt_held",
+      "file": "20-missing-receipt.yaml",
+      "passed": true,
+      "expected_state": "completed_with_exceptions",
+      "actual_state": "completed_with_exceptions",
+      "reason": "missing_receipt x1",
+      "failures": [],
+      "exceptions": [
+        "missing_receipt"
+      ],
+      "rules_cited": [
+        "R1",
+        "R9"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001",
+        "PUR-ORD-2026-00001",
+        "ACC-PINV-2026-00001"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 344,
+      "erp_writes": 5,
+      "extract_method": "heuristic",
+      "category": "quantity / receipt"
+    },
+    {
+      "name": "dry_run_writes_nothing",
+      "file": "21-dry-run.yaml",
+      "passed": true,
+      "expected_state": "dry_run",
+      "actual_state": "dry_run",
+      "reason": "dry run: nothing was written",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "DRYRUN-MATERIAL-REQUEST",
+        "DRYRUN-PURCHASE-ORDER",
+        "DRYRUN-PURCHASE-RECEIPT",
+        "DRYRUN-PURCHASE-INVOICE"
+      ],
+      "steps": 11,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 415,
+      "erp_writes": 0,
+      "extract_method": "heuristic",
+      "category": "flow"
+    },
+    {
+      "name": "erp_validation_error_handled",
+      "file": "22-erp-validation-error.yaml",
+      "passed": true,
+      "expected_state": "needs_human",
+      "actual_state": "needs_human",
+      "reason": "the ERP refused: Schedule Date cannot be before Transaction Date",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [],
+      "steps": 4,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 489,
+      "erp_writes": 1,
+      "extract_method": "heuristic",
+      "category": "resilience"
+    },
+    {
+      "name": "read_back_verification_failure",
+      "file": "23-verification-failure.yaml",
+      "passed": true,
+      "expected_state": "needs_human",
+      "actual_state": "needs_human",
+      "reason": "read-back verification failed: Material Request MAT-MR-2026-00001 was stored differently from what was sent: supplier: asked 'Bharat Fasteners Pvt Ltd', stored 'Someone Else Entirely'",
+      "failures": [],
+      "exceptions": [],
+      "rules_cited": [
+        "R1",
+        "R8"
+      ],
+      "documents": [],
+      "steps": 4,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 876,
+      "erp_writes": 1,
+      "extract_method": "heuristic",
+      "category": "resilience"
+    },
+    {
+      "name": "transient_error_is_retried",
+      "file": "24-transient-5xx-retry.yaml",
+      "passed": false,
+      "expected_state": "completed",
+      "actual_state": "needs_human",
+      "reason": "the ERP refused: Internal Server Error",
+      "failures": [
+        "state: expected completed, got needs_human"
+      ],
+      "exceptions": [],
+      "rules_cited": [
+        "R1"
+      ],
+      "documents": [
+        "MAT-MR-2026-00001"
+      ],
+      "steps": 5,
+      "llm_calls": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "ms": 563,
+      "erp_writes": 3,
+      "extract_method": "heuristic",
+      "category": "resilience"
+    }
+  ]
+}

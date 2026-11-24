@@ -1,0 +1,8 @@
+name: run_ceiling_blocked
+input: seed/samples/req-ceiling-breach.txt
+why: R10 bounds what a bug can do. Approval cannot waive it.
+approve: true
+expect:
+  state: blocked
+  rules_cited: [R10]
+  not_submitted: true

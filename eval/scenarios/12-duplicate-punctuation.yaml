@@ -1,0 +1,11 @@
+name: duplicate_invoice_different_punctuation
+input: seed/samples/req-happy.txt
+why: "inv 0042 and INV-0042 are one invoice. An exact string check misses this."
+repeat_with_same_bill_no: true
+first_bill_no: INV-0042
+plan:
+  supplier_invoice_no: "inv 0042"
+expect:
+  state: blocked
+  exceptions: [duplicate_invoice]
+  rules_cited: [R5]

@@ -1,0 +1,9 @@
+name: happy_under_threshold
+input: seed/samples/req-happy.txt
+why: The ordinary case. Under the R1 ceiling, so no person is involved at all.
+expect:
+  state: completed
+  approval_required: false
+  rules_cited: [R1]
+  documents: [material_request, purchase_order, purchase_receipt, purchase_invoice]
+  exceptions: []

@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+.next/
+out/
+
+# Secrets. Never.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Run artefacts. results.json / results.md / exceptions.xlsx ARE committed,
+# because the README cites their numbers and a reader must be able to check.
+eval/results/traces.sqlite
+eval/results/paused/
