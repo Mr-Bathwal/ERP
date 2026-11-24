@@ -481,12 +481,18 @@ def main() -> int:
 
     (RESULTS / f"results-{args.tag}.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8")
-    (RESULTS / "results.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     write_markdown(summary, RESULTS / f"results-{args.tag}.md")
-    write_markdown(summary, RESULTS / "results.md")
-
-    n = write_exception_report(rows, RESULTS / "exceptions.xlsx", summary=summary)
-    export_json(EVAL_TRACES, RESULTS / "traces.json")
+    # Only a published tag updates the committed record (results.json is the
+    # trace-head anchor). Scratch, ci and live runs write their own files.
+    if args.tag in ("ci", "scratch", "live"):
+        n = write_exception_report(rows, RESULTS / f"exceptions-{args.tag}.xlsx",
+                                   summary=summary)
+        export_json(EVAL_TRACES, RESULTS / f"traces-{args.tag}.json")
+    else:
+        (RESULTS / "results.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        write_markdown(summary, RESULTS / "results.md")
+        n = write_exception_report(rows, RESULTS / "exceptions.xlsx", summary=summary)
+        export_json(EVAL_TRACES, RESULTS / "traces.json")
 
     print(f"\n  success {summary['success_rate']}%  "
           f"({summary['passed']}/{summary['scenarios']})   "

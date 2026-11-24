@@ -60,8 +60,9 @@ class Settings:
     currency: str = "INR"
     price_list: str = os.getenv("PF_PRICE_LIST", "Standard Buying")   # R14
 
-    # R10. Held here as well as in the policy because it is a circuit
-    # breaker: if policy retrieval itself fails, this still applies.
+    # Legacy, informational only: R10 is enforced from the policy, which
+    # fails closed if it does not parse, so there is no second copy of the
+    # ceiling to drift. Kept so an existing .env does not break.
     run_ceiling_paise: int = int(os.getenv("PF_RUN_CEILING", "50000000"))
 
     trace_db: str = os.getenv("PF_TRACE_DB", "eval/results/traces.sqlite")

@@ -245,6 +245,9 @@ class Tracer:
                 h = _link(prev, row)
                 chained.append((*row, prev, h))
                 prev = h
+            # The run's own verdict is the last link, so editing a run's
+            # state or reason breaks the chain as surely as editing a step.
+            prev = _link(prev, ("run", self.state, self.reason, json.dumps(self.rules_cited)))
             self.chain_head = prev
             conn.execute(
                 "INSERT OR REPLACE INTO runs (run_id, started_at, ended_at, source_file,"
@@ -319,8 +322,8 @@ def verify_trace(db_path: str | Path, run_id: str, *, expect_head: str = "") -> 
     """
     conn = connect(db_path)
     try:
-        run = conn.execute("SELECT policy_sha256, chain_head FROM runs WHERE run_id=?",
-                           (run_id,)).fetchone()
+        run = conn.execute("SELECT policy_sha256, chain_head, state, reason, rules_cited "
+                           "FROM runs WHERE run_id=?", (run_id,)).fetchone()
         if run is None:
             return False, f"no run {run_id}"
         rows = conn.execute("SELECT " + ", ".join(_STEP_COLS) + ", prev_hash, hash FROM steps "
@@ -334,8 +337,9 @@ def verify_trace(db_path: str | Path, run_id: str, *, expect_head: str = "") -> 
         if stored_prev != prev or stored != h:
             return False, f"step {body[1]} ({body[2]}) does not match its hash"
         prev = h
+    prev = _link(prev, ("run", run[2], run[3], run[4]))
     if run[1] != prev:
-        return False, "the run's chain head does not match its steps"
+        return False, "the run's verdict or chain head does not match its steps"
     if expect_head and expect_head != prev:
         return False, "the chain is internally consistent but differs from the anchored head"
     return True, prev

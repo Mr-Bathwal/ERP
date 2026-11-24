@@ -215,6 +215,7 @@ class PolicyNumbers:
     split_window_days: int = 7
     duplicate_window_days: int = 30
     source: str = "policy/procurement_policy.md"
+    missing: list[str] = field(default_factory=list)
 
 
 def _rupees_to_paise(text: str) -> int | None:
@@ -225,61 +226,69 @@ def _rupees_to_paise(text: str) -> int | None:
     return int(m.group(1).replace(",", "")) * 100
 
 
-def read_numbers(rules: list[Rule] | None = None) -> PolicyNumbers:
-    """Pull every threshold the engine needs out of the policy text.
+def _normative(rule: Rule) -> str:
+    """The rule's operative text: everything but its rationale blockquotes,
+    with line wraps collapsed. Numbers are read from here only -- v2 read
+    "the first rupee amount anywhere in the rule", so rewording R3's cap made
+    it pick up the Rs28 pair of gloves from R3's own rationale."""
+    keep = [ln for ln in rule.text.splitlines() if not ln.lstrip().startswith(">")]
+    return " ".join(" ".join(keep).split())
 
-    Each value falls back to the documented default if the sentence it lives
-    in has been reworded. A reworded policy that silently reverts a
-    threshold would be the worst possible failure here, so
-    `verify_numbers()` exists to assert the parse actually found them, and a
-    test calls it against the shipped document.
+
+def _rupees(text: str) -> int:
+    return int(text.replace(",", "")) * 100
+
+
+def read_numbers(rules: list[Rule] | None = None) -> PolicyNumbers:
+    """Pull every threshold the engine needs out of the policy's operative text.
+
+    Strict: each number is matched by the exact bold phrase the policy uses
+    for it, in the rule's operative text, never its rationale. A number that
+    cannot be found is recorded in `missing` -- it does **not** quietly fall
+    back to a default -- and `verify_numbers` turns that into a refusal to
+    start. R1's text and its summary-table row must also agree: two copies of
+    a threshold that disagree is a policy nobody can rely on.
     """
     rules = rules if rules is not None else parse_policy()
     by_id = {r.rule_id: r for r in rules}
     n = PolicyNumbers()
 
-    if (r1 := by_id.get("R1")):
-        if (v := _rupees_to_paise(r1.threshold or r1.text)) is not None:
-            n.approval_ceiling_paise = v
+    def find(rid: str, pattern: str, what: str):
+        rule = by_id.get(rid)
+        m = re.search(pattern, _normative(rule)) if rule else None
+        if not m:
+            n.missing.append(f"{rid} {what}")
+        return m
 
-    if (r3 := by_id.get("R3")):
-        if (m := re.search(r"(\d+(?:\.\d+)?)\s*%", r3.text)):
-            n.price_pct = float(m.group(1))
-        if (v := _rupees_to_paise(r3.text)) is not None:
-            n.price_abs_paise = v
-
-    if (r4 := by_id.get("R4")):
-        if (m := re.search(r"(\d+(?:\.\d+)?)\s*%", r4.text)):
-            n.qty_pct = float(m.group(1))
-        if (m := re.search(r"\*\*(\d+(?:\.\d+)?)\s*unit", r4.text)):
-            n.qty_abs_units = float(m.group(1))
-
-    if (r7 := by_id.get("R7")):
-        if (m := re.search(r"\*\*(\d+)\s*calendar days?\*\*", r7.text)):
-            n.expedite_days = int(m.group(1))
-
-    if (r10 := by_id.get("R10")):
-        if (v := _rupees_to_paise(r10.text)) is not None:
-            n.run_ceiling_paise = v
+    if (m := find("R1", r"\*\*above ₹([\d,]+)\*\*", "approval threshold")):
+        n.approval_ceiling_paise = _rupees(m.group(1))
+        table = re.search(r"₹\s*([\d,]+)", by_id["R1"].threshold or "")
+        if table and _rupees(table.group(1)) != n.approval_ceiling_paise:
+            n.missing.append("R1 text and summary table disagree "
+                             f"(₹{m.group(1)} vs ₹{table.group(1)})")
+    if (m := find("R3", r"\*\*(\d+(?:\.\d+)?)%\*\*", "price percentage")):
+        n.price_pct = float(m.group(1))
+    if (m := find("R3", r"\*\*₹([\d,]+) per line\*\*", "price cash cap")):
+        n.price_abs_paise = _rupees(m.group(1))
+    if (m := find("R4", r"\*\*(\d+(?:\.\d+)?)%\*\*", "quantity percentage")):
+        n.qty_pct = float(m.group(1))
+    if (m := find("R4", r"\*\*(\d+(?:\.\d+)?) units?\*\*", "quantity units")):
+        n.qty_abs_units = float(m.group(1))
+    if (m := find("R7", r"\*\*(?:fewer than )?(\d+) calendar days?\*\*", "expedite days")):
+        n.expedite_days = int(m.group(1))
+    if (m := find("R10", r"\*\*₹([\d,]+)\*\*", "run ceiling")):
+        n.run_ceiling_paise = _rupees(m.group(1))
+    if (m := find("R13", r"\*\*(\d+(?:\.\d+)?)\s*pt\*\*", "hidden-text font size")):
+        n.hidden_font_pt = float(m.group(1))
+    if (m := find("R15", r"\*\*(\d+)\s*days?\*\*", "split window")):
+        n.split_window_days = int(m.group(1))
+    if (m := find("R5", r"\*\*(\d+)\s*days?\*\*", "near-duplicate window")):
+        n.duplicate_window_days = int(m.group(1))
 
     if (r2 := by_id.get("R2")):
         n.preferred = _preferred_from(r2.text)
-
     if (r12 := by_id.get("R12")):
         n.approvers = parse_authority(r12.text)
-
-    if (r13 := by_id.get("R13")):
-        if (m := re.search(r"\*\*(\d+(?:\.\d+)?)\s*pt\*\*", r13.text)):
-            n.hidden_font_pt = float(m.group(1))
-
-    if (r15 := by_id.get("R15")):
-        if (m := re.search(r"\*\*(\d+)\s*days?\*\*", r15.text)):
-            n.split_window_days = int(m.group(1))
-
-    if (r5 := by_id.get("R5")):
-        if (m := re.search(r"\*\*(\d+)\s*days?\*\*", r5.text)):
-            n.duplicate_window_days = int(m.group(1))
-
     return n
 
 
@@ -315,7 +324,8 @@ def verify_numbers(n: PolicyNumbers) -> list[str]:
     regular expressions that read it. This turns a silent reversion to
     defaults into a loud failure at import time.
     """
-    bad: list[str] = []
+    bad: list[str] = [f"{m} did not parse from the rule's operative text" if " disagree " not in m
+                      else m for m in n.missing]
     if n.approval_ceiling_paise <= 0:
         bad.append("R1 approval ceiling did not parse")
     if not (0 < n.price_pct <= 100):

@@ -153,6 +153,9 @@ def cmd_verify_trace(a: argparse.Namespace) -> int:
     if a.against:
         runs = json.loads(Path(a.against).read_text(encoding="utf-8")).get("runs", [])
         head = next((r.get("trace_head", "") for r in runs if r.get("run_id") == a.run_id), "")
+        if not head:
+            print(f"  BROKEN: run {a.run_id} has no anchored head in {a.against}")
+            return 1
     ok, detail = verify_trace(a.db or settings.trace_db, a.run_id, expect_head=head)
     print(f"  {'intact' if ok else 'BROKEN'}: {detail}")
     return 0 if ok else 1
@@ -191,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
     ap_.set_defaults(fn=cmd_approve)
 
     e = sub.add_parser("eval", help="run the evaluation harness")
-    e.add_argument("--tag", default="v2")
+    e.add_argument("--tag", default="scratch")
     e.add_argument("--live", action="store_true")
     e.set_defaults(fn=cmd_eval)
 

@@ -22,3 +22,10 @@ eval/results/paused/
 
 # Local agent/editor config
 .claude/
+
+# Scratch, CI and live eval outputs; only published tags are committed.
+eval/results/results-scratch.*
+eval/results/results-ci.*
+eval/results/results-live.*
+eval/results/exceptions-*.xlsx
+eval/results/traces-*.json

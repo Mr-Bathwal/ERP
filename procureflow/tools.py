@@ -249,14 +249,17 @@ def submit_exactly_once(erp: Any, doctype: str, name: str, *,
     except VerificationError:
         raise
     except ERPError as e:
-        if "modified after you have opened it" in str(e).lower():
-            raise VerificationError(f"{doctype} {name} changed between its last read and the "
-                                    f"submit, so ERPNext refused it: {e}", doctype=doctype) from e
-        if not (_ambiguous(e) or "already submitted" in str(e).lower()):
+        stale = "modified after you have opened it" in str(e).lower()
+        if not (stale or _ambiguous(e) or "already submitted" in str(e).lower()):
             raise
         doc = erp.get_doc(doctype, name)
         if doc.docstatus == 1:
+            # Submitted -- by an earlier attempt whose answer was lost. The
+            # caller re-checks the approval digest on the returned document.
             return doc, f"confirmed submitted by read-back after: {e}"
+        if stale:
+            raise VerificationError(f"{doctype} {name} changed between its last read and the "
+                                    f"submit, so ERPNext refused it: {e}", doctype=doctype) from e
         raise
 
 
@@ -573,6 +576,12 @@ TOOLS = (
 )
 
 
+def _policy_ceiling() -> int:
+    """R10 as the policy states it -- the number that is actually enforced."""
+    from .policy_rag import read_numbers
+    return read_numbers().run_ceiling_paise
+
+
 def describe_permissions() -> dict[str, Any]:
     """What this application may do, as data.
 
@@ -583,7 +592,7 @@ def describe_permissions() -> dict[str, Any]:
         "tools": list(TOOLS),
         "read_doctypes": sorted(ALLOWED_READ),
         "write_doctypes": sorted(ALLOWED_WRITE),
-        "run_ceiling": rupees(settings.run_ceiling_paise),
+        "run_ceiling": rupees(_policy_ceiling()),
         "raw_http": False,
         "can_create_supplier": False,
     }

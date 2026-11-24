@@ -725,6 +725,7 @@ def test_a_run_paused_under_one_policy_does_not_finish_under_another(erp, policy
     assert s.state is RunState.AWAITING_APPROVAL and s.policy_sha256
     edited = parse_policy()
     edited[0].text = edited[0].text.replace("₹50,000", "₹40,000")
+    edited[0].threshold = edited[0].threshold.replace("₹50,000", "₹40,000")
     later = Agent(erp, policy=PolicyIndex(edited, prefer_vectors=False))
     s2, _ = later.resume(s, tr, approved=True, approver="proc.manager")
     assert s2.state is RunState.NEEDS_HUMAN and "policy changed" in s2.reason
@@ -1069,3 +1070,81 @@ def test_the_rest_client_sends_the_modified_stamp_with_the_submit():
     c._client = httpx.Client(base_url="http://erp.invalid", transport=T())
     c.submit("Purchase Order", "P", expected_modified="2026-11-24 09:00:01.000001")
     assert seen == {"docstatus": 1, "modified": "2026-11-24 09:00:01.000001"}
+
+
+def test_a_hold_is_a_decision_and_cites_r16(agent):
+    from procureflow.graph import RunPlan
+    s, _ = agent.run(sample("req-price-variance.txt"),
+                     plan=RunPlan(invoice_rates={"LUB-GRS-EP2": 4700}), today=TODAY)
+    assert "R16" in s.rules
+    clean, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert "R16" not in clean.rules
+
+
+
+# ---------------------------------------------------------------------------
+# The docs review: a reworded rule fails closed, numbers come from the operative
+# text, a trace's verdict is chained, an unknown run is not "intact"
+# ---------------------------------------------------------------------------
+
+
+def _edited(rid, old, new, *, table=False):
+    from procureflow.policy_rag import parse_policy
+    rules = parse_policy()
+    r = next(x for x in rules if x.rule_id == rid)
+    r.text = r.text.replace(old, new)
+    if table:
+        r.threshold = r.threshold.replace(old, new)
+    return rules
+
+
+@pytest.mark.parametrize("rid,old,new,why", [
+    ("R1", "**above ₹50,000**", "above Rs 75,000", "R1 approval threshold"),
+    ("R1", "₹50,000", "₹75,000", "disagree"),                 # text changed, table not
+    ("R3", "**₹500 per line**", "Rs 500 a line", "R3 price cash cap"),
+    ("R10", "**₹5,00,000**", "five lakh rupees", "R10 run ceiling"),
+    ("R7", "**fewer than 2 calendar days**", "under two days", "R7 expedite days"),
+])
+def test_a_reworded_rule_stops_the_agent_instead_of_reverting_to_a_default(erp, rid, old, new,
+                                                                             why):
+    from procureflow.policy_rag import PolicyError, PolicyIndex
+    with pytest.raises(PolicyError, match=why):
+        Agent(erp, policy=PolicyIndex(_edited(rid, old, new), prefer_vectors=False))
+
+
+def test_a_number_in_the_rationale_is_never_read_as_the_threshold():
+    from procureflow.policy_rag import read_numbers
+    n = read_numbers(_edited("R3", "**₹500 per line**", "Rs 500 a line"))
+    assert n.price_abs_paise == 500 * 100, "the default, not the Rs28 from the rationale"
+    assert "R3 price cash cap" in n.missing
+
+
+def test_editing_a_runs_verdict_breaks_its_chain(erp, policy, tmp_path):
+    import sqlite3
+
+    from procureflow.tracing import verify_trace
+    agent = Agent(erp, policy=policy, trace_db=tmp_path / "t.sqlite")
+    _, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
+    con = sqlite3.connect(tmp_path / "t.sqlite")
+    con.execute("UPDATE runs SET state='completed' WHERE run_id=?", (tr.run_id,))
+    con.commit()
+    ok, why = verify_trace(tmp_path / "t.sqlite", tr.run_id)
+    assert not ok and "verdict" in why
+
+
+def test_verify_trace_against_a_file_without_the_run_is_not_intact(erp, policy, tmp_path):
+    from procureflow import cli
+    agent = Agent(erp, policy=policy, trace_db=tmp_path / "t.sqlite")
+    _, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    (tmp_path / "r.json").write_text(json.dumps({"runs": []}), encoding="utf-8")
+    assert cli.main(["verify-trace", tr.run_id, "--db", str(tmp_path / "t.sqlite"),
+                     "--against", str(tmp_path / "r.json")]) == 1
+
+
+def test_a_lost_submit_answer_is_confirmed_by_reading_not_refused_as_stale(agent, erp):
+    """The first PUT went through; the retry's `modified` is stale. Not a failure."""
+    s, tr = agent.run(sample("req-over-threshold.txt"), today=TODAY)
+    erp.fail_next(ERPError("Document has been modified after you have opened it", status=417),
+                  doctype="Purchase Order", op="submit", after_commit=True)
+    s2, _ = agent.resume(s, tr, approved=True, approver="proc.manager")
+    assert s2.state is RunState.COMPLETED, s2.reason

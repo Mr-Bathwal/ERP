@@ -553,6 +553,11 @@ class Agent:
                       if not s.ctx.dry_run and s.approval_digest else None)
             po, call = submit_doc(self.erp, s.ctx, "Purchase Order", s.po.name,
                                   expected_modified=locked)
+            if (s.approval_digest and not s.ctx.dry_run
+                    and approval.digest(approval.snapshot(po)) != s.approval_digest):
+                raise VerificationError(f"Purchase Order {po.name} was submitted but does not "
+                                        "match the order that was approved",
+                                        doctype="Purchase Order")
             st.tool_calls.append({"kind": "erp", **call.__dict__})
             s.po = po if po.items else s.po
             st.erp_docs = [s.po.name]
@@ -638,7 +643,12 @@ class Agent:
                 st.detail += ("; possible duplicate of "
                               + ", ".join(str(d.get("name")) for d in s.possible_duplicates))
             if int(inv.get("on_hold") or 0):
+                # Every decision cites its rule, holds included: v3's first
+                # cut wrote the hold but cited nothing, which the dashboard's
+                # rule-coverage count caught (R16 cited by 0 runs).
                 st.detail += "; placed on hold in ERPNext (R16)"
+                st.rules_cited = [*st.rules_cited, "R16"]
+                s.cite("R16", "held", str(inv.get("hold_comment") or ""))
         return s
 
     def _hold_for(self, s: State, payload: dict[str, Any], bill_no: str,

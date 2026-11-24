@@ -358,7 +358,10 @@ class ERPNextClient:
         body: dict[str, Any] = {"docstatus": 1}
         if expected_modified:
             body["modified"] = expected_modified
-        self._request("PUT", f"/api/resource/{doctype}/{name}", json=body)
+        # Not retried by the transport: a retry after a lost response carries
+        # a now-stale `modified` and would be refused even though the first
+        # one succeeded. tools.submit_exactly_once settles it by reading.
+        self._request("PUT", f"/api/resource/{doctype}/{name}", json=body, retry=False)
         stored = self.get_doc(doctype, name)
         if stored.docstatus != 1:
             raise VerificationError(
