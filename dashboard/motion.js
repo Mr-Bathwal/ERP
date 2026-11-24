@@ -411,6 +411,102 @@
     sec.classList.add('is-act');
   }
 
+  /* ---- §02 THE RAIL: the eleven nodes, read sideways --------------
+     Built from the vertical timeline the page has already rendered,
+     not from the JSON again: the rail is a projection of what is on
+     screen, so the two can never disagree. It rebuilds when the
+     selected run changes, which the signature below detects. */
+  function buildRail() {
+    if (reduced || !hasGsap) return;
+    const scene = $('#flow');
+    const track = $('#rail-track');
+    const stage = $('.rail-stage');
+    if (!scene || !track || !stage) return;
+    if (!window.matchMedia('(min-width: 981px)').matches) return;
+
+    const nodes = $$('#timeline .tl-node');
+    if (!nodes.length) return;
+
+    const sig = nodes.map((n) => n.className + '|' +
+      (($('.node', n) || {}).textContent || '')).join(',');
+    if (track.dataset.sig === sig) return;
+    track.dataset.sig = sig;
+
+    if (track._st) { track._st.kill(); track._st = null; }
+    gsap.set(track, { x: 0 });
+    track.innerHTML = '';
+
+    nodes.forEach((n, i) => {
+      const name = (($('.node', n) || {}).textContent || '').trim();
+      const stageLabel = (($('.stage', n) || {}).textContent || '').trim();
+      const desc = (($('.tl-desc', n) || {}).textContent || '').trim();
+      const badge = $('.badge', n);
+      const verified = $$('.verified', n).length;
+
+      const card = document.createElement('article');
+      card.className = 'rail-card';
+      if (n.classList.contains('gate')) card.classList.add('is-gate');
+      if (n.classList.contains('is-stop')) card.classList.add('is-stop');
+      if (n.classList.contains('is-fail')) card.classList.add('is-fail');
+      if (n.classList.contains('unreached')) card.classList.add('is-unreached');
+
+      const num = String(i + 1).padStart(2, '0');
+      card.innerHTML =
+        '<p class="rail-n"><span>' + num + '</span><span>' + esc(stageLabel) + '</span></p>' +
+        '<p class="rail-name">' + esc(name) + '</p>' +
+        '<p class="rail-desc">' + esc(desc) + '</p>' +
+        '<div class="rail-foot">' +
+          (badge ? badge.outerHTML : '') +
+          (verified ? '<span class="rail-writes">' + verified +
+            ' read-back' + (verified > 1 ? 's' : '') + '</span>' : '') +
+        '</div>';
+      track.appendChild(card);
+    });
+
+    const total = nodes.length;
+    const pos = $('#rail-pos');
+    const fill = $('#rail-fill');
+    const distance = () => Math.max(0, track.scrollWidth - stage.clientWidth);
+
+    track._st = gsap.to(track, {
+      x: () => -distance(),
+      ease: 'none',
+      scrollTrigger: {
+        trigger: scene,
+        start: 'top top+=72',
+        end: () => '+=' + Math.max(700, distance()),
+        pin: true,
+        scrub: 0.75,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+        onUpdate(self) {
+          const n = Math.min(total, Math.max(1, Math.round(self.progress * (total - 1)) + 1));
+          if (pos) pos.textContent = 'Node ' + String(n).padStart(2, '0') + ' of ' + total;
+          if (fill) fill.style.width = (self.progress * 100).toFixed(1) + '%';
+        },
+      },
+    }).scrollTrigger;
+  }
+
+  const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ESC[c]);
+
+  /* ---- the chapter transitions ------------------------------------ */
+  function wireChapters() {
+    if (reduced || !hasGsap) return;
+    $$('.chapter').forEach((c) => {
+      if (c.dataset.wired) return;
+      c.dataset.wired = '1';
+      const n = $('.chapter-n', c);
+      const t = $('.chapter-t', c);
+      gsap.fromTo(n, { xPercent: -8, opacity: 0.4 },
+        { xPercent: 8, opacity: 1, ease: 'none',
+          scrollTrigger: { trigger: c, start: 'top bottom', end: 'bottom top', scrub: 0.8 } });
+      gsap.from(t, { y: 24, opacity: 0, duration: 0.7, ease: 'power3.out',
+        scrollTrigger: { trigger: c, start: 'top 75%', once: true } });
+    });
+  }
+
   /* ---- the opening curtain ---------------------------------------
      Built in script and removed on a timer that does not depend on
      anything loading, so the worst case is a blank half second, never
@@ -512,6 +608,8 @@
     wireCards(r);
     fillTicker();
     wireRules(r);
+    buildRail();
+    wireChapters();
     wireApprovalAct();
     if (hasGsap) ST.refresh();
     // A refresh moves everything; anything already at the fold has to

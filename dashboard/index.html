@@ -19,6 +19,7 @@
 
 <nav class="thread" aria-label="Sections, in order">
   <a href="#run"><i></i><span>Run</span></a>
+  <a href="#flow"><i></i><span>Flow</span></a>
   <a href="#attacks"><i></i><span>Attacks</span></a>
   <a href="#approval"><i></i><span>Approval</span></a>
   <a href="#numbers"><i></i><span>Numbers</span></a>
@@ -32,6 +33,7 @@
     <a class="brand" href="#top">ProcureFlow<span>evaluation record</span></a>
     <nav class="nav" aria-label="Sections">
       <a href="#run">Run</a>
+      <a href="#flow">Flow</a>
       <a href="#attacks">Attacks</a>
       <a href="#approval">Approval</a>
       <a href="#numbers">Numbers</a>
@@ -49,7 +51,7 @@
 <!-- §01 ------------------------------------------------------------ -->
 <section class="hero" id="run" aria-labelledby="hero-title">
   <div class="wrap">
-    <p class="kicker"><b>§01</b> One recorded run, node by node</p>
+    <p class="eyebrow"><b>01</b> One recorded run, node by node</p>
     <h1 id="hero-title">A successful-looking write is not a completed write.</h1>
     <div class="hero-intro">
       <p class="lede">ProcureFlow turns a request email or a supplier quote into a Material Request, a Purchase Order, an approval, a goods receipt and a Purchase Invoice in ERPNext, then matches order, receipt and invoice. Every write is read back and compared with what was sent before the run moves on, and every decision cites a rule in the written policy.</p>
@@ -75,10 +77,26 @@
 </section>
 
 <!-- §02 ------------------------------------------------------------ -->
+<section class="sec rail-scene" id="flow" aria-labelledby="flow-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no"><span class="eyebrow"><b>02</b> The flow</span></p><h2 id="flow-title">Eleven nodes, one direction</h2></div>
+      <p class="dek">The same run read sideways, one card per node, in the only order the graph allows. A conversational agent picks its next tool; this one cannot, because you cannot receive against an order you have not submitted.</p>
+    </header>
+    <div class="rail-meter">
+      <span id="rail-pos">Node 01 of 11</span>
+      <div class="bar2"><i id="rail-fill"></i></div>
+      <span>Scroll</span>
+    </div>
+  </div>
+  <div class="rail-stage"><div class="rail-track" id="rail-track"></div></div>
+</section>
+
+<!-- §03 ---------------------------------------------------------- -->
 <section class="sec" id="attacks" aria-labelledby="attacks-title">
   <div class="wrap">
     <header class="sec-head">
-      <div><p class="sec-no">§02</p><h2 id="attacks-title">Attacks it stops</h2></div>
+      <div><p class="sec-no"><span class="eyebrow"><b>03</b> Attacks it stops</span></p><h2 id="attacks-title">Attacks it stops</h2></div>
       <p class="dek" id="attacks-dek"></p>
     </header>
     <div id="attack-groups"><p class="loading">Loading&hellip;</p></div>
@@ -86,10 +104,17 @@
 </section>
 
 <!-- §03 ------------------------------------------------------------ -->
+<div class="chapter" aria-hidden="true">
+  <div class="chapter-in">
+    <span class="chapter-n">04</span>
+    <div><p class="chapter-t">An approval covers the order the approver saw.</p><p class="chapter-sub">Four beats, scrubbed</p></div>
+  </div>
+</div>
+
 <section class="sec" id="approval" aria-labelledby="approval-title">
   <div class="wrap">
     <header class="sec-head">
-      <div><p class="sec-no">§03</p><h2 id="approval-title">The approval receipt</h2></div>
+      <div><p class="sec-no"><span class="eyebrow"><b>04</b> The approval receipt</span></p><h2 id="approval-title">The approval receipt</h2></div>
       <p class="dek">An approval is given to an order as it looked at that moment. The gate records a digest of what the approver saw; just before submitting, the order is read back from the ERP and the digest recomputed. If they differ, the approval is void (R12).</p>
     </header>
     <div id="receipt"><p class="loading">Loading&hellip;</p></div>
@@ -100,7 +125,7 @@
 <section class="sec" id="numbers" aria-labelledby="numbers-title">
   <div class="wrap">
     <header class="sec-head">
-      <div><p class="sec-no">§04</p><h2 id="numbers-title">The numbers, with their denominators</h2></div>
+      <div><p class="sec-no"><span class="eyebrow"><b>05</b> The numbers</span></p><h2 id="numbers-title">The numbers, with their denominators</h2></div>
       <p class="dek" id="numbers-dek">Every figure here is read from the eval's own JSON when this page loads. None of them is a production measurement.</p>
     </header>
     <div class="metrics" id="metrics"><p class="loading">Loading&hellip;</p></div>
@@ -123,7 +148,7 @@
 <section class="sec" id="policy" aria-labelledby="policy-title">
   <div class="wrap">
     <header class="sec-head">
-      <div><p class="sec-no">§05</p><h2 id="policy-title">The policy is a document</h2></div>
+      <div><p class="sec-no"><span class="eyebrow"><b>06</b> The policy</span></p><h2 id="policy-title">The policy is a document</h2></div>
       <p class="dek">No threshold lives in the code. The agent parses <code>policy/procurement_policy.md</code> and cites a rule id on every decision. The count beside each rule is how many scenarios cite it in their recorded rules, out of the whole v3 suite.</p>
     </header>
     <div class="pol-meta" id="pol-meta"></div>
@@ -132,10 +157,17 @@
 </section>
 
 <!-- §06 ------------------------------------------------------------ -->
+<div class="chapter" aria-hidden="true">
+  <div class="chapter-in">
+    <span class="chapter-n">07</span>
+    <div><p class="chapter-t">An exception is the run declining to pay without a person.</p><p class="chapter-sub">Eleven runs, held in ERPNext</p></div>
+  </div>
+</div>
+
 <section class="sec" id="exceptions" aria-labelledby="exceptions-title">
   <div class="wrap">
     <header class="sec-head">
-      <div><p class="sec-no">§06</p><h2 id="exceptions-title">Exceptions ledger</h2></div>
+      <div><p class="sec-no"><span class="eyebrow"><b>07</b> Exceptions ledger</span></p><h2 id="exceptions-title">Exceptions ledger</h2></div>
       <p class="dek">Runs where the three-way match or the invoice check raised an exception. An exception is not a failure of the run: it is the run declining to pay without a person, and the invoice is held in ERPNext rather than noted in a spreadsheet (R16).</p>
     </header>
     <div class="ledger-meta" id="ledger-meta"></div>
@@ -147,7 +179,7 @@
 <section class="sec" id="limits" aria-labelledby="limits-title">
   <div class="wrap">
     <header class="sec-head">
-      <div><p class="sec-no">§07</p><h2 id="limits-title">What this record is not</h2></div>
+      <div><p class="sec-no"><span class="eyebrow"><b>08</b> What this is not</span></p><h2 id="limits-title">What this record is not</h2></div>
       <p class="dek">Read these before quoting any number above.</p>
     </header>
     <ul class="limits" id="limits-list"></ul>

@@ -36,14 +36,17 @@ export function startScene(canvas) {
   renderer.setSize(window.innerWidth, window.innerHeight, false);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x05070a, 0.055);
+  scene.fog = new THREE.FogExp2(0x0e0e0f, 0.055);
 
   const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 160);
   camera.position.set(0, 0.35, 7);
 
-  const jade = new THREE.Color(0x2bd98a);
-  const violet = new THREE.Color(0x8c7bff);
-  const cyan = new THREE.Color(0x4fd8ff);
+  // Monochrome, like the rest of the page. The only colour in the
+  // scene is amber on every sixth link, which is the approval gate:
+  // the one place in the flow where the agent stops for a person.
+  const paper = new THREE.Color(0xf4f3f1);
+  const grey = new THREE.Color(0x9d9c99);
+  const amber = new THREE.Color(0xf5b544);
 
   const chain = new THREE.Group();
   scene.add(chain);
@@ -55,9 +58,9 @@ export function startScene(canvas) {
   const outline = new THREE.EdgesGeometry(new THREE.BoxGeometry(2.1, 1.3, 0.04));
   const inner = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.74, 1.0, 0.04));
 
-  const plateMat = new THREE.LineBasicMaterial({ color: jade, transparent: true, opacity: 0.55 });
-  const innerMat = new THREE.LineBasicMaterial({ color: cyan, transparent: true, opacity: 0.18 });
-  const gateMat = new THREE.LineBasicMaterial({ color: violet, transparent: true, opacity: 0.75 });
+  const plateMat = new THREE.LineBasicMaterial({ color: paper, transparent: true, opacity: 0.4 });
+  const innerMat = new THREE.LineBasicMaterial({ color: grey, transparent: true, opacity: 0.15 });
+  const gateMat = new THREE.LineBasicMaterial({ color: amber, transparent: true, opacity: 0.6 });
 
   const links = [];
   for (let i = 0; i < PLATES; i++) {
@@ -78,7 +81,7 @@ export function startScene(canvas) {
   const threadPts = links.map((l) => new THREE.Vector3(0, 0, l.position.z));
   const thread = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(threadPts),
-    new THREE.LineBasicMaterial({ color: jade, transparent: true, opacity: 0.25 }),
+    new THREE.LineBasicMaterial({ color: paper, transparent: true, opacity: 0.18 }),
   );
   chain.add(thread);
 
@@ -92,7 +95,7 @@ export function startScene(canvas) {
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
-    color: 0x8aa0b8, size: 0.022, transparent: true, opacity: 0.5, sizeAttenuation: true,
+    color: 0x9d9c99, size: 0.02, transparent: true, opacity: 0.4, sizeAttenuation: true,
   }));
   scene.add(dust);
 
