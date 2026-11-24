@@ -23,4 +23,8 @@ ignore = ["E501", "B008", "SIM108", "UP042", "SIM102", "SIM105"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The package is not installed; it is imported from the checkout. `python -m
+# pytest` put the root on sys.path by accident of the module form, so a bare
+# `pytest` -- which is what CI runs -- could not import conftest at all.
+pythonpath = ["."]
 filterwarnings = ["ignore::DeprecationWarning"]
