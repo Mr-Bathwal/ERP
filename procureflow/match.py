@@ -26,10 +26,37 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from enum import Enum
 from typing import Any
 
 PAISE = 100
+_ONE = Decimal(1)
+
+
+def dec(value: Any) -> Decimal:
+    """A number as the person wrote it, without passing through binary floating point.
+
+    A `float` is converted through its shortest round-tripping repr, so `1.005`
+    becomes `Decimal("1.005")` and not `Decimal(1.00499999999999989...)`.
+    """
+    if value is None or value == "":
+        return Decimal(0)
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, bool):
+        return Decimal(int(value))
+    if isinstance(value, int):
+        return Decimal(value)
+    if isinstance(value, float):
+        return Decimal(repr(value))
+    text = re.sub(r"[^\d.\-]", "", str(value).strip().replace(",", ""))
+    if text in ("", "-", "."):
+        return Decimal(0)
+    try:
+        return Decimal(text)
+    except InvalidOperation:
+        return Decimal(0)
 
 
 def paise(value: Any) -> int:
@@ -38,17 +65,27 @@ def paise(value: Any) -> int:
     Accepts what a reader actually returns: `1240`, `1240.00`, `"1,240.00"`,
     `"₹ 1,240.00"`. Rounds half away from zero, which is what an invoice
     does, rather than Python's bankers' rounding.
+
+    The arithmetic is decimal, not float. The float version passed its own
+    rounding test (`0.125`, `0.135`) and still turned `1.005` into 100 paise
+    and `0.285` into 28, because neither is representable in binary and both
+    land a hair *below* the half. A test that only checks the values its
+    author thought of is a test of the author.
     """
-    if value is None or value == "":
-        return 0
     if isinstance(value, int) and not isinstance(value, bool):
         return value * PAISE
-    text = str(value).strip()
-    text = re.sub(r"[^\d.\-]", "", text.replace(",", ""))
-    if text in ("", "-", "."):
-        return 0
-    whole = float(text) * PAISE
-    return int(whole + (0.5 if whole >= 0 else -0.5))
+    return int((dec(value) * PAISE).quantize(_ONE, rounding=ROUND_HALF_UP))
+
+
+def line_paise(rate_paise: int, qty: Any) -> int:
+    """Exact value of one line: integer paise times a decimal quantity.
+
+    Quantities can be fractional (2.5 kg of granules), so `rate * qty` is the
+    one multiplication in the money path that can produce a fraction of a
+    paisa. It is rounded once, half away from zero, here -- not truncated by
+    an `int()` at whichever call site happened to compute it.
+    """
+    return int((Decimal(int(rate_paise)) * dec(qty)).quantize(_ONE, rounding=ROUND_HALF_UP))
 
 
 def rupees(p: int, *, sign: bool = False) -> str:
@@ -100,14 +137,24 @@ class Tolerances:
     qty_pct: float = 2.0
     qty_abs_units: float = 1.0
 
+    def pct_limit_paise(self, po_rate_paise: int) -> int:
+        """The percentage half of R3, in exact paise."""
+        return int((Decimal(abs(int(po_rate_paise))) * dec(self.price_pct) / 100)
+                   .quantize(_ONE, rounding=ROUND_HALF_UP))
+
     def price_limit(self, po_rate_paise: int) -> int:
         """R3: the tighter of 5% and ₹500."""
-        pct_limit = int(abs(po_rate_paise) * self.price_pct / 100 + 0.5)
-        return min(pct_limit, self.price_abs_paise)
+        return min(self.pct_limit_paise(po_rate_paise), self.price_abs_paise)
 
-    def qty_limit(self, po_qty: float) -> float:
-        """R4: the greater of 2% and 1 unit."""
-        return max(abs(po_qty) * self.qty_pct / 100, self.qty_abs_units)
+    def qty_limit(self, po_qty: Any) -> Decimal:
+        """R4: the greater of 2% and 1 unit.
+
+        Decimal, because the comparison sits exactly on the boundary the
+        policy defines: 2% of 60 is 1.2, and in floats `61.2 - 60` is
+        `1.2000000000000028`, which made a delivery exactly at the limit an
+        over-receipt.
+        """
+        return max(abs(dec(po_qty)) * dec(self.qty_pct) / 100, dec(self.qty_abs_units))
 
 
 @dataclass
@@ -214,20 +261,19 @@ def _by_item(items: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         code = str(it.get("item_code") or it.get("description") or "").strip()
         if not code:
             continue
-        qty = float(it.get("qty") or 0)
+        qty = dec(it.get("qty"))
         rate_p = paise(it.get("rate"))
+        amount = line_paise(rate_p, qty)
         if code in out:
             prev = out[code]
-            total_qty = prev["qty"] + qty
-            if total_qty:
-                prev["rate_paise"] = int(
-                    (prev["rate_paise"] * prev["qty"] + rate_p * qty) / total_qty + 0.5)
-            prev["qty"] = total_qty
-            prev["amount_paise"] += int(rate_p * qty + 0.5)
+            prev["qty"] += qty
+            prev["amount_paise"] += amount
+            if prev["qty"]:
+                prev["rate_paise"] = int((Decimal(prev["amount_paise"]) / prev["qty"])
+                                         .quantize(_ONE, rounding=ROUND_HALF_UP))
         else:
             out[code] = {"item_code": code, "qty": qty, "rate_paise": rate_p,
-                         "amount_paise": int(rate_p * qty + 0.5),
-                         "uom": it.get("uom", "Nos")}
+                         "amount_paise": amount, "uom": it.get("uom", "Nos")}
     return out
 
 
@@ -283,14 +329,14 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
         grn_items = _by_item(receipt.items or [])
         for code, po_line in po_items.items():
             grn = grn_items.get(code)
-            got = float(grn["qty"]) if grn else 0.0
-            want = float(po_line["qty"])
+            got = grn["qty"] if grn else Decimal(0)
+            want = po_line["qty"]
             delta = got - want
             limit = tol.qty_limit(want)
             if abs(delta) <= limit:
                 continue
             kind = ExceptionType.QTY_SHORT if delta < 0 else ExceptionType.QTY_OVER
-            pct = (delta / want * 100) if want else 0.0
+            pct = float(delta / want * 100) if want else 0.0
             res.exceptions.append(MatchException(
                 type=kind, rule_id="R4", item_code=code,
                 po_name=res.po_name, receipt_name=res.receipt_name,
@@ -321,8 +367,8 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
             if delta_p <= limit_p:
                 continue            # under-billing is not an exception
             pct = (delta_p / want_p * 100) if want_p else 0.0
-            binding = ("the 5% band" if int(abs(want_p) * tol.price_pct / 100 + 0.5)
-                       <= tol.price_abs_paise else f"the {rupees(tol.price_abs_paise)} cash cap")
+            binding = ("the 5% band" if tol.pct_limit_paise(want_p) <= tol.price_abs_paise
+                       else f"the {rupees(tol.price_abs_paise)} cash cap")
             res.exceptions.append(MatchException(
                 type=ExceptionType.PRICE_VARIANCE, rule_id="R3", item_code=code,
                 po_name=res.po_name, invoice_name=res.invoice_name,

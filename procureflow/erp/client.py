@@ -45,6 +45,24 @@ ALLOWED_WRITE = frozenset({
     "Material Request", "Purchase Order", "Purchase Receipt", "Purchase Invoice",
 })
 
+# Server methods this application may call. `run_method` takes a dotted path,
+# and Frappe exposes hundreds of whitelisted methods behind `/api/method/` --
+# some of which write (`frappe.client.set_value`, `frappe.client.insert`) and
+# would walk straight round the doctype allowlist above. Only ERPNext's own
+# document mappers are needed, so only they are allowed.
+ALLOWED_METHODS = frozenset({
+    "erpnext.stock.doctype.material_request.material_request.make_purchase_order",
+    "erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt",
+    "erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_invoice",
+})
+
+
+def guard_method(dotted_path: str) -> None:
+    """Refuse any server method that is not one of the three mappers."""
+    if dotted_path not in ALLOWED_METHODS:
+        raise ERPError(f"server method {dotted_path!r} may not be called by this application",
+                       status=403)
+
 
 class ERPError(RuntimeError):
     """An ERP operation failed in a way the caller is expected to handle.
@@ -328,7 +346,9 @@ class ERPNextClient:
         These dotted paths move between ERPNext versions, so every caller is
         expected to verify the path exists on the installed version and fall
         back to building the document itself. See `tools.py::make_mapped_doc`.
+        The path is checked against `ALLOWED_METHODS` before a request is built.
         """
+        guard_method(dotted_path)
         body = self._request("POST", f"/api/method/{dotted_path}", json=kwargs)
         return body.get("message") if isinstance(body.get("message"), dict) else body
 

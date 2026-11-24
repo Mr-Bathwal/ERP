@@ -38,7 +38,15 @@ from typing import Any, Literal
 from .config import PurchaseRequest, RunContext, RunState
 from .erp.client import Doc, ERPError, VerificationError
 from .extract import Catalogue, extract, resolve_items
-from .match import MatchResult, Tolerances, find_duplicate_invoice, paise, rupees, three_way_match
+from .match import (
+    MatchResult,
+    Tolerances,
+    find_duplicate_invoice,
+    line_paise,
+    paise,
+    rupees,
+    three_way_match,
+)
 from .policy_rag import PolicyIndex, PolicyNumbers, read_numbers
 from .tools import (
     ToolRefused,
@@ -52,6 +60,10 @@ from .tools import (
     supplier_exists,
 )
 from .tracing import Tracer
+
+#: States at which the driver stops walking the sequence.
+STOP_STATES = (RunState.NEEDS_HUMAN, RunState.ESCALATED, RunState.BLOCKED,
+               RunState.AWAITING_APPROVAL, RunState.FAILED)
 
 
 @dataclass
@@ -213,8 +225,8 @@ class Agent:
                                   "backend": self.policy.backend,
                                   "returned": [r.rule_id for r in rules]})
 
-            value_p = sum(paise(i.rate or 0) * float(i.qty or 0) for i in req.items)
-            s.po_value_paise = int(value_p)
+            s.po_value_paise = sum(line_paise(paise(i.rate or 0), i.qty or 0)
+                                   for i in req.items)
 
             if s.po_value_paise > self.numbers.approval_ceiling_paise:
                 s.needs_approval = True
@@ -417,27 +429,31 @@ class Agent:
                     scenario=scenario, dry_run=dry_run, receipt_mode=receipt_mode)
         return self._drive(s, tr)
 
+    def _stages(self) -> tuple:
+        return (self.n_extract, self.n_validate_masters, self.n_policy_check,
+                self.n_create_material_request, self.n_create_purchase_order,
+                self.n_approval_gate, self.n_submit_purchase_order,
+                self.n_goods_receipt, self.n_create_purchase_invoice,
+                self.n_three_way_match, self.n_report)
+
     def _drive(self, s: State, tr: Tracer) -> tuple[State, Tracer]:
-        """The sequence, with every exception turned into a stated outcome."""
-        stages = (
-            (self.n_extract, None),
-            (self.n_validate_masters, None),
-            (self.n_policy_check, None),
-            (self.n_create_material_request, None),
-            (self.n_create_purchase_order, None),
-            (self.n_approval_gate, None),
-            (self.n_submit_purchase_order, None),
-            (self.n_goods_receipt, None),
-            (self.n_create_purchase_invoice, None),
-            (self.n_three_way_match, None),
-            (self.n_report, None),
-        )
+        """The full sequence, from the document to the report."""
+        return self._walk(s, tr, self._stages())
+
+    def _walk(self, s: State, tr: Tracer, stages: tuple) -> tuple[State, Tracer]:
+        """Run `stages` in order, turning every exception into a stated outcome.
+
+        One loop and one set of handlers for both the first run and the
+        resume after approval. They used to be two copies, and the resume
+        copy had no `VerificationError` branch -- so a read-back failure
+        after approval was caught by `except ERPError` and reported as "the
+        ERP refused", the exact folding this project exists to forbid. A
+        second copy of a safety rule is the one that drifts.
+        """
         try:
-            for fn, _ in stages:
+            for fn in stages:
                 s = fn(s, tr)
-                if s.state in (RunState.NEEDS_HUMAN, RunState.ESCALATED,
-                               RunState.BLOCKED, RunState.AWAITING_APPROVAL,
-                               RunState.FAILED):
+                if s.state in STOP_STATES:
                     break
                 # A rejection may only take effect once the gate has run.
                 # Checking it after every node meant a pre-seeded
@@ -451,7 +467,7 @@ class Agent:
                     break
         except ToolRefused as e:
             s.state, s.reason = RunState.BLOCKED, str(e)
-            s.cite("R10", "blocked", str(e))
+            s.cite(e.rule_id, "blocked", str(e))
         except VerificationError as e:
             # Its own branch: this is the failure the project is about, and
             # it must never be folded into a generic ERP error.
@@ -473,28 +489,8 @@ class Agent:
         s.approver_note = note
         s.state = RunState.RUNNING     # re-established by the nodes below
         s.reason = ""
-        try:
-            for fn in (self.n_approval_gate, self.n_submit_purchase_order,
-                       self.n_goods_receipt, self.n_create_purchase_invoice,
-                       self.n_three_way_match, self.n_report):
-                s = fn(s, tr)
-                if s.state in (RunState.BLOCKED, RunState.ESCALATED,
-                               RunState.NEEDS_HUMAN, RunState.FAILED):
-                    break
-                if s.approved is False and fn == self.n_approval_gate:
-                    s.state = RunState.ESCALATED
-                    s.reason = note or "rejected by the approver"
-                    break
-        except ToolRefused as e:
-            s.state, s.reason = RunState.BLOCKED, str(e)
-        except ERPError as e:
-            s.state, s.reason = RunState.NEEDS_HUMAN, f"the ERP refused: {e}"
-        except Exception as e:                                   # noqa: BLE001
-            s.state, s.reason = RunState.FAILED, f"{type(e).__name__}: {e}"
-        finally:
-            tr.rules_cited = s.rules
-            tr.finish(s.state.value, s.reason)
-        return s, tr
+        stages = self._stages()
+        return self._walk(s, tr, stages[stages.index(self.n_approval_gate):])
 
 
 # ---------------------------------------------------------------------------

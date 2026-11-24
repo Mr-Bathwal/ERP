@@ -31,7 +31,15 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from .client import ALLOWED_READ, ALLOWED_WRITE, Doc, ERPError, VerificationError, _compare
+from .client import (
+    ALLOWED_READ,
+    ALLOWED_WRITE,
+    Doc,
+    ERPError,
+    VerificationError,
+    _compare,
+    guard_method,
+)
 
 # Minimum fields ERPNext refuses to save without. Kept deliberately short:
 # these are the ones a half-built payload actually misses.
@@ -251,6 +259,7 @@ class FakeERPClient:
         that refusal is the reason the approval gate cannot be bypassed by
         calling the mapper early.
         """
+        guard_method(dotted_path)
         self.calls.append(("method", dotted_path, str(kwargs)))
         self._maybe_fail(dotted_path, "method")
 

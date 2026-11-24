@@ -34,7 +34,7 @@ from typing import Any
 
 from .config import RunContext, settings
 from .erp.client import ALLOWED_READ, ALLOWED_WRITE, Doc, ERPError
-from .match import paise, rupees
+from .match import line_paise, paise, rupees
 
 
 @dataclass
@@ -56,8 +56,13 @@ class ToolRefused(RuntimeError):
 
     Distinct from `ERPError`: the ERP never saw it. These are the cases the
     design intends to refuse, so they are reported as decisions rather than
-    as failures.
+    as failures. `rule_id` is the policy rule the refusal enforces, so the
+    run cites the right one instead of assuming every refusal is R10.
     """
+
+    def __init__(self, message: str, *, rule_id: str = "R10") -> None:
+        super().__init__(message)
+        self.rule_id = rule_id
 
 
 def _timed(fn):                                                  # noqa: ANN001
@@ -255,9 +260,8 @@ def create_purchase_order(erp: Any, ctx: RunContext, *, mr: Doc, supplier: str,
         it.setdefault("warehouse", settings.warehouse)
         it.setdefault("schedule_date", schedule_date)
 
-    total_p = sum(paise(i.get("rate")) * float(i.get("qty") or 0)
+    total_p = sum(line_paise(paise(i.get("rate")), i.get("qty"))
                   for i in payload.get("items") or [])
-    total_p = int(total_p)
 
     call = ToolCall(name="create_purchase_order",
                     args={"supplier": supplier, "route": route,
