@@ -298,6 +298,54 @@ body > footer { position: relative; z-index: 2; }
 .theme-btn:hover { border-color: var(--text); transform: rotate(18deg); }
 .theme-btn svg { width: 17px; height: 17px; }
 
+/* ---- how far through the record you are ------------------------- */
+.prog {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--jade), var(--cyan));
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* ---- the hero's scroll cue -------------------------------------- */
+.cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: clamp(32px, 5vw, 56px);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.cue i {
+  display: block;
+  width: 56px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--jade), transparent);
+  position: relative;
+  overflow: hidden;
+}
+.cue i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--jade);
+  transform-origin: 0 50%;
+  animation: cue 2.4s var(--ease-in-out) infinite;
+}
+@keyframes cue {
+  0% { transform: scaleX(0); }
+  45% { transform: scaleX(1); }
+  100% { transform: scaleX(1) translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) { .cue i::after { animation: none; } }
+
 /* ---- the scroll thread: §01..§07 down the left edge -------------- */
 .thread {
   position: fixed;

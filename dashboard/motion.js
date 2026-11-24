@@ -273,6 +273,22 @@
     onScroll();
   }
 
+  /* ---- the progress hairline -------------------------------------- */
+  function wireProgress() {
+    const bar = document.createElement('div');
+    bar.className = 'prog';
+    bar.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bar);
+    const set = () => {
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      const p = h > 0 ? Math.min(1, (window.scrollY || 0) / h) : 0;
+      bar.style.transform = 'scaleX(' + p + ')';
+    };
+    window.addEventListener('scroll', set, { passive: true });
+    window.addEventListener('resize', set);
+    set();
+  }
+
   /* ---- the pointer ring ------------------------------------------- */
   function wireRing() {
     if (reduced || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
@@ -326,6 +342,7 @@
   function boot() {
     splitHeadline($('#hero-title'));
     wireThread();
+    wireProgress();
     wireRing();
     wireHero();
     scan(document);
