@@ -1,4 +1,4 @@
-.PHONY: setup seed samples run eval test lint report api dash clean
+.PHONY: setup seed samples run eval eval-publish eval-live test lint report api dash clean
 
 PY := .venv/Scripts/python.exe
 ifeq ($(OS),)
@@ -22,7 +22,8 @@ run:              ## run one request end to end against the fake ERP
 eval:             ## run all scenarios, diffed against eval/baseline.json
 	$(PY) eval/run_eval.py --tag scratch --check-baseline
 
-eval-publish:     
+eval-publish:     ## record a new, write-once result: make eval-publish TAG=v4
+	$(PY) eval/run_eval.py --tag $(TAG) --check-baseline
 
 eval-live:        ## run all scenarios against a live ERPNext
 	$(PY) eval/run_eval.py --tag live --live
