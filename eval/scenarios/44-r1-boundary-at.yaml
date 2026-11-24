@@ -1,0 +1,7 @@
+name: r1_exactly_at_threshold_is_automatic
+input: seed/samples/req-boundary-r1-at.txt
+category: boundaries
+why: Rs50,000.00 exactly. R1 says "above Rs50,000", so this needs nobody.
+expect:
+  state: completed
+  approval_required: false

@@ -979,3 +979,44 @@ def test_the_agent_can_place_a_hold_but_has_no_way_to_release_one():
     from procureflow.tools import TOOLS
     assert not any("hold" in t or "release" in t or "unblock" in t for t in TOOLS)
     assert not any("block" in m or "hold" in m for m in ALLOWED_METHODS)
+
+
+# ---------------------------------------------------------------------------
+# The trace invariants can fail: proven on traces built to break them
+# ---------------------------------------------------------------------------
+
+
+def _trace(*steps):
+    from procureflow.tracing import Step
+    return type("T", (), {"steps": [Step(node=n, seq=i + 1, started_at=0, outcome=o,
+                                         tool_calls=c, rules_cited=r)
+                                    for i, (n, o, c, r) in enumerate(steps)]})()
+
+
+W = [{"kind": "erp", "name": "submit_doc", "ok": True, "result": "submitted X"}]
+
+
+def test_the_invariants_catch_a_submit_without_an_approved_gate():
+    from eval import invariants
+    tr = _trace(("approval_gate", "paused", [], []), ("submit_purchase_order", "ok", W, []))
+    assert any("without an approved gate" in v
+               for v in invariants.check(tr, rule_ids={"R1"}))
+
+
+def test_the_invariants_catch_a_write_after_a_stop():
+    from eval import invariants
+    tr = _trace(("extract", "needs_human", [], []), ("create_material_request", "ok", W, []))
+    assert any("wrote after the run stopped" in v for v in invariants.check(tr, rule_ids=set()))
+
+
+def test_the_invariants_catch_a_citation_of_a_rule_that_does_not_exist():
+    from eval import invariants
+    tr = _trace(("policy_check", "ok", [], ["R99"]))
+    assert invariants.check(tr, rule_ids={"R1"}) == ["step 1 cites R99, which is not in the policy"]
+
+
+def test_a_resumed_run_after_approval_is_not_a_violation():
+    from eval import invariants
+    tr = _trace(("approval_gate", "paused", [], []), ("approval_gate", "approved", [], []),
+                ("submit_purchase_order", "ok", W, []))
+    assert invariants.check(tr, rule_ids=set()) == []

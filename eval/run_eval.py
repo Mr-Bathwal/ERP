@@ -44,6 +44,7 @@ sys.path.insert(0, str(ROOT))
 
 import yaml  # noqa: E402
 
+from eval import invariants  # noqa: E402
 from procureflow.config import settings  # noqa: E402
 from procureflow.erp.client import ERPError  # noqa: E402
 from procureflow.erp.fake import demo_company  # noqa: E402
@@ -88,6 +89,9 @@ class Outcome:
     category: str = ""
     trace_head: str = ""
     run_id: str = ""
+    invariant_violations: list[str] = field(default_factory=list)
+    should_stop: bool = False
+    did_stop: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
@@ -292,6 +296,16 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
         writes = -1                   # two runs share the counter; not meaningful
 
     bad = _check(sc, s, erp, writes)
+    # Invariants hold on every trace, whatever the scenario expected.
+    broken = invariants.check(tr, rule_ids={r.rule_id for r in policy.rules},
+                              dry_run=bool(sc.get("dry_run")))
+    bad += [f"invariant: {v}" for v in broken]
+    # Should a person have touched this run, and did one have to? A run
+    # "stops" when it ends anywhere but a clean completion: paused, held,
+    # blocked, escalated, or with exceptions on the invoice.
+    clean = {"completed", "dry_run"}
+    should_stop = (sc.get("expect") or {}).get("state", "completed") not in clean
+    did_stop = s.state.value not in clean
     docs = [d for d in (getattr(s.mr, "name", None), getattr(s.po, "name", None),
                         getattr(s.receipt, "name", None),
                         getattr(s.invoice, "name", None)) if d]
@@ -305,6 +319,7 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
         llm_calls=tr.llm_calls, tokens_in=tr.tokens_in, tokens_out=tr.tokens_out,
         ms=wall, erp_writes=writes, extract_method=s.extract_method,
         trace_head=getattr(tr, "chain_head", ""), run_id=tr.run_id,
+        invariant_violations=broken, should_stop=should_stop, did_stop=did_stop,
         category=_category(sc),
     )
 
@@ -318,6 +333,15 @@ def summarise(rows: list[Outcome], *, tag: str, live: bool, backend: str, elapse
     for r in rows:
         c = by_cat.setdefault(r.category, {"pass": 0, "fail": 0})
         c["pass" if r.passed else "fail"] += 1
+    # The table a buyer of an AP agent should ask for first. False-touchless
+    # -- a run that should have stopped for a person and did not -- is the
+    # dangerous cell, so it is the headline, printed with its denominator.
+    touch = {
+        "should_stop_did_stop": sum(1 for r in rows if r.should_stop and r.did_stop),
+        "should_stop_did_not": sum(1 for r in rows if r.should_stop and not r.did_stop),
+        "should_pass_did_stop": sum(1 for r in rows if not r.should_stop and r.did_stop),
+        "should_pass_did_pass": sum(1 for r in rows if not r.should_stop and not r.did_stop),
+    }
 
     return {
         "tag": tag,
@@ -333,6 +357,10 @@ def summarise(rows: list[Outcome], *, tag: str, live: bool, backend: str, elapse
         "success_rate": round(100 * sum(1 for r in rows if r.passed) / max(len(rows), 1), 1),
         "exception_scenarios": len(exc_rows),
         "exception_detection_rate": round(100 * detected / max(len(exc_rows), 1), 1),
+        "touch_table": touch,
+        "false_touchless": touch["should_stop_did_not"],
+        "should_stop": touch["should_stop_did_stop"] + touch["should_stop_did_not"],
+        "invariant_violations": sum(len(r.invariant_violations) for r in rows),
         "avg_steps": round(statistics.fmean([r.steps for r in rows]), 1) if rows else 0,
         "avg_llm_calls": round(statistics.fmean([r.llm_calls for r in rows]), 2) if rows else 0,
         "avg_tokens_in": int(statistics.fmean([r.tokens_in for r in rows])) if rows else 0,
@@ -358,6 +386,9 @@ def write_markdown(summary: dict[str, Any], path: Path) -> None:
          f"| **Task success rate** | **{s['success_rate']}%** ({s['passed']}/{s['scenarios']}) |",
          f"| Exception-detection rate | {s['exception_detection_rate']}% "
          f"({s['exception_scenarios']} scenarios) |",
+         f"| **False-touchless** (should have stopped, did not) | **{s['false_touchless']}** "
+         f"of {s['should_stop']} |",
+         f"| Trace-invariant violations | {s['invariant_violations']} |",
          f"| Avg steps per run | {s['avg_steps']} |",
          f"| Avg LLM calls per run | {s['avg_llm_calls']} |",
          f"| Avg tokens in / out | {s['avg_tokens_in']} / {s['avg_tokens_out']} |",
@@ -388,6 +419,11 @@ def main() -> int:
     ap.add_argument("--live", action="store_true", help="run against a real ERPNext")
     ap.add_argument("--tag", default="v1", help="label this run, e.g. v1 / v2")
     ap.add_argument("--only", default="", help="substring filter on scenario name")
+    ap.add_argument("--check-baseline", action="store_true",
+                    help="fail if any scenario's outcome, writes or steps differ from "
+                         "eval/baseline.json (CI)")
+    ap.add_argument("--write-baseline", action="store_true",
+                    help="record this run as the new eval/baseline.json")
     args = ap.parse_args()
 
     if args.live and not settings.erp_configured:
@@ -442,6 +478,25 @@ def main() -> int:
           f"p50 {summary['p50_ms']}ms  p95 {summary['p95_ms']}ms   "
           f"{elapsed:.1f}s total")
     print(f"  wrote results-{args.tag}.json/.md, exceptions.xlsx ({n} rows), traces.json")
+    base_path = ROOT / "eval" / "baseline.json"
+    snap = {r.name: {"state": r.actual_state, "exceptions": r.exceptions,
+                     "rules": r.rules_cited, "erp_writes": r.erp_writes, "steps": r.steps}
+            for r in rows}
+    if args.write_baseline:
+        base_path.write_text(json.dumps(snap, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"  wrote {base_path.name} ({len(snap)} scenarios)")
+    if args.check_baseline:
+        # A scenario can keep passing while doing more than it used to -- an
+        # extra write, an extra step. CI fails on any drift unless the
+        # baseline changes in the same commit, where a reviewer sees it.
+        base = json.loads(base_path.read_text(encoding="utf-8"))
+        drift = [f"{n}: {base.get(n)} -> {v}" for n, v in snap.items() if base.get(n) != v]
+        drift += [f"{n}: missing from this run" for n in base if n not in snap]
+        for d in drift:
+            print(f"  BASELINE DRIFT  {d}")
+        if drift:
+            return 1
+        print(f"  baseline: {len(snap)} scenarios unchanged")
     return 0 if summary["failed"] == 0 else 1
 
 

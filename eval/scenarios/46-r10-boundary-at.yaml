@@ -1,0 +1,11 @@
+name: r10_exactly_at_ceiling_is_allowed
+input: seed/samples/req-boundary-r10-at.txt
+category: boundaries
+why: >
+  Rs5,00,000.00 exactly: inside R10 (which stops orders *above* it), so with
+  the Head of Finance's approval the order completes.
+approve: true
+approver: finance.head
+expect:
+  state: completed
+  approval_required: true

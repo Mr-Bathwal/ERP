@@ -1,0 +1,481 @@
+{
+ "ambiguous_item_needs_human": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R8"
+  ],
+  "state": "needs_human",
+  "steps": 1
+ },
+ "approval_beyond_authority_refused": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "awaiting_approval",
+  "steps": 6
+ },
+ "approval_by_head_of_finance_completes": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "approval_by_requester_refused": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "awaiting_approval",
+  "steps": 6
+ },
+ "approval_pauses_without_answer": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "awaiting_approval",
+  "steps": 6
+ },
+ "approval_rejected": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "escalated",
+  "steps": 6
+ },
+ "bank_detail_change_request_escalated": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R13"
+  ],
+  "state": "escalated",
+  "steps": 1
+ },
+ "billed_over_received": {
+  "erp_writes": 7,
+  "exceptions": [
+   "billed_over_received"
+  ],
+  "rules": [
+   "R1",
+   "R11",
+   "R12"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "dry_run_writes_nothing": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "dry_run",
+  "steps": 11
+ },
+ "duplicate_invoice_blocked": {
+  "erp_writes": -1,
+  "exceptions": [
+   "duplicate_invoice"
+  ],
+  "rules": [
+   "R1",
+   "R5"
+  ],
+  "state": "blocked",
+  "steps": 9
+ },
+ "duplicate_invoice_different_punctuation": {
+  "erp_writes": -1,
+  "exceptions": [
+   "duplicate_invoice"
+  ],
+  "rules": [
+   "R1",
+   "R5"
+  ],
+  "state": "blocked",
+  "steps": 9
+ },
+ "erp_validation_error_handled": {
+  "erp_writes": 1,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "needs_human",
+  "steps": 4
+ },
+ "expedite_flag": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R7"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "forged_quote_with_another_gstin_stopped": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R6"
+  ],
+  "state": "needs_human",
+  "steps": 2
+ },
+ "happy_over_threshold": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "happy_under_threshold": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "hidden_instruction_in_quote_pdf_quarantined": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R13"
+  ],
+  "state": "needs_human",
+  "steps": 1
+ },
+ "lookalike_invoice_number_held": {
+  "erp_writes": -1,
+  "exceptions": [
+   "possible_duplicate"
+  ],
+  "rules": [
+   "R1",
+   "R5"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "lost_submit_response_settled_by_read_back": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "messy_email_typos_and_units": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R14"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "missing_quantity_needs_human": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R8"
+  ],
+  "state": "needs_human",
+  "steps": 1
+ },
+ "missing_receipt_held": {
+  "erp_writes": 5,
+  "exceptions": [
+   "missing_receipt"
+  ],
+  "rules": [
+   "R1",
+   "R9"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "multi_item_pdf_quote": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "one_rod_short_billed_in_full": {
+  "erp_writes": 7,
+  "exceptions": [
+   "billed_over_received"
+  ],
+  "rules": [
+   "R1",
+   "R11",
+   "R12"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "order_edited_while_awaiting_approval_is_not_submitted": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "blocked",
+  "steps": 8
+ },
+ "partial_receipt_qty_short": {
+  "erp_writes": 7,
+  "exceptions": [
+   "billed_over_received",
+   "qty_short"
+  ],
+  "rules": [
+   "R1",
+   "R11",
+   "R12",
+   "R4"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "payments_only_hold_still_orders": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R6"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "preferred_supplier_noted": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R2"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "price_variance_breach": {
+  "erp_writes": 7,
+  "exceptions": [
+   "price_variance"
+  ],
+  "rules": [
+   "R1",
+   "R3"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "price_variance_within_tolerance": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "prompt_injection_in_email_quarantined": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R13"
+  ],
+  "state": "needs_human",
+  "steps": 1
+ },
+ "qty_over_receipt": {
+  "erp_writes": 7,
+  "exceptions": [
+   "qty_over"
+  ],
+  "rules": [
+   "R1",
+   "R12",
+   "R4"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "qty_within_tolerance": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "quoted_above_price_list_needs_approval": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R14"
+  ],
+  "state": "awaiting_approval",
+  "steps": 6
+ },
+ "r10_exactly_at_ceiling_is_allowed": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R12"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "r10_one_paisa_over_is_blocked": {
+  "erp_writes": 2,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R10"
+  ],
+  "state": "blocked",
+  "steps": 5
+ },
+ "r1_exactly_at_threshold_is_automatic": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "r1_one_paisa_over_needs_approval": {
+  "erp_writes": 3,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "awaiting_approval",
+  "steps": 6
+ },
+ "read_back_verification_failure": {
+  "erp_writes": 1,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R8"
+  ],
+  "state": "needs_human",
+  "steps": 4
+ },
+ "run_ceiling_blocked": {
+  "erp_writes": 2,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R10"
+  ],
+  "state": "blocked",
+  "steps": 5
+ },
+ "same_amount_new_number_held": {
+  "erp_writes": -1,
+  "exceptions": [
+   "possible_duplicate"
+  ],
+  "rules": [
+   "R1",
+   "R5"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "split_order_needs_approval": {
+  "erp_writes": 10,
+  "exceptions": [],
+  "rules": [
+   "R15"
+  ],
+  "state": "awaiting_approval",
+  "steps": 6
+ },
+ "supplier_on_hold_escalates": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R6"
+  ],
+  "state": "escalated",
+  "steps": 2
+ },
+ "timeout_after_commit_exactly_once": {
+  "erp_writes": 7,
+  "exceptions": [],
+  "rules": [
+   "R1"
+  ],
+  "state": "completed",
+  "steps": 11
+ },
+ "unknown_supplier_escalated": {
+  "erp_writes": 0,
+  "exceptions": [],
+  "rules": [
+   "R6"
+  ],
+  "state": "escalated",
+  "steps": 2
+ },
+ "unordered_invoice_line": {
+  "erp_writes": 7,
+  "exceptions": [
+   "unordered_line"
+  ],
+  "rules": [
+   "R1",
+   "R11"
+  ],
+  "state": "completed_with_exceptions",
+  "steps": 11
+ },
+ "unpriced_order_is_valued_from_the_price_list": {
+  "erp_writes": 2,
+  "exceptions": [],
+  "rules": [
+   "R1",
+   "R10",
+   "R14"
+  ],
+  "state": "blocked",
+  "steps": 5
+ }
+}

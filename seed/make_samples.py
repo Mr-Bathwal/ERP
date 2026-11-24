@@ -152,6 +152,60 @@ EMAILS: dict[str, str] = {
         S. Nambiar
         """,
 
+    # Boundaries to the paisa. Rs1,250.00 is inside R14's band over the
+    # Rs1,240.00 list price; 40 rods are exactly Rs50,000.00 (R1 allows it),
+    # and one washer at Rs0.01 makes it Rs50,000.01 (R1 does not). 400 rods
+    # are exactly the R10 ceiling; the washer puts the order one paisa over.
+    "req-boundary-r1-at": """\
+        Subject: Rods - boundary
+
+        Supplier: Deccan Steel & Alloys
+
+        - 40 nos Bright steel rod 20mm 6m @ 1250.00
+
+        Needed by 2026-12-21.
+
+        R. Iyer
+        """,
+
+    "req-boundary-r1-over": """\
+        Subject: Rods - boundary plus one paisa
+
+        Supplier: Deccan Steel & Alloys
+
+        - 40 nos Bright steel rod 20mm 6m @ 1250.00
+        - 1 nos Flat washer M8 zinc @ 0.01
+
+        Needed by 2026-12-21.
+
+        R. Iyer
+        """,
+
+    "req-boundary-r10-at": """\
+        Subject: Rods - annual, at the ceiling
+
+        Supplier: Deccan Steel & Alloys
+
+        - 400 nos Bright steel rod 20mm 6m @ 1250.00
+
+        Needed by 2027-01-15.
+
+        R. Iyer
+        """,
+
+    "req-boundary-r10-over": """\
+        Subject: Rods - annual, one paisa over the ceiling
+
+        Supplier: Deccan Steel & Alloys
+
+        - 400 nos Bright steel rod 20mm 6m @ 1250.00
+        - 1 nos Flat washer M8 zinc @ 0.01
+
+        Needed by 2027-01-15.
+
+        R. Iyer
+        """,
+
     # R12: Rs2,23,800 is inside R10 but above the Procurement Manager's
     # Rs2,00,000 authority, so only the Head of Finance may approve it.
     "req-authority-limit": """\

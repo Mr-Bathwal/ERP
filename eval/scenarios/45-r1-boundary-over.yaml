@@ -1,0 +1,8 @@
+name: r1_one_paisa_over_needs_approval
+input: seed/samples/req-boundary-r1-over.txt
+category: boundaries
+why: Rs50,000.01. One paisa over R1 is over R1; integer paise make that exact.
+expect:
+  state: awaiting_approval
+  approval_required: true
+  rules_cited: [R1]

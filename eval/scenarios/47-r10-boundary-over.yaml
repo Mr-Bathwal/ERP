@@ -1,0 +1,10 @@
+name: r10_one_paisa_over_is_blocked
+input: seed/samples/req-boundary-r10-over.txt
+category: boundaries
+why: Rs5,00,000.01. One paisa over the ceiling, approval or not, is blocked.
+approve: true
+approver: finance.head
+expect:
+  state: blocked
+  rules_cited: [R10]
+  reason_contains: R10
