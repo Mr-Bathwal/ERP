@@ -1,10 +1,15 @@
 name: qty_within_tolerance
 input: seed/samples/req-short-delivery.txt
-why: 59 of 60 is inside R4's greater-of rule and must NOT raise an exception.
+why: >
+  59 of 60 arrived: inside R4's 1-unit allowance, so the receipt is not an
+  exception, and the supplier bills the 59 that arrived. (Until v3 the bill
+  was for 60 and this passed clean, which meant paying Rs1,240 for a rod
+  that never arrived; that case is now scenario 40.)
 approve: true   # Rs74,400 is over the R1 ceiling
 approver: proc.manager   # R12: Procurement Manager, up to Rs2,00,000
 plan:
   received_qty: {STL-ROD-20: 59}
+  invoice_qty: {STL-ROD-20: 59}
 expect:
   state: completed
   exceptions: []

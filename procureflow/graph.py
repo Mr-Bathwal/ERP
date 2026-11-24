@@ -45,6 +45,7 @@ from .match import (
     find_duplicate_invoice,
     find_possible_duplicates,
     line_paise,
+    normalise_invoice_no,
     paise,
     rupees,
     three_way_match,
@@ -518,8 +519,23 @@ class Agent:
     def n_create_purchase_invoice(self, s: State, tr: Tracer) -> State:
         """Record the supplier's invoice. R5 blocks a repeat before anything is written."""
         with tr.step("create_purchase_invoice") as st:
-            bill_no = s.plan.supplier_invoice_no or (
-                s.request.supplier_invoice_no or f"SUP-{s.ctx.run_id[:6].upper()}")
+            given = s.plan.supplier_invoice_no or s.request.supplier_invoice_no or ""
+            if given and not normalise_invoice_no(given):
+                # Fail closed: an empty key used to mean "nothing to compare",
+                # so an unreadable number skipped R5 entirely.
+                s.state = RunState.NEEDS_HUMAN
+                s.reason = (f"R5: the supplier invoice number {given!r} has no letters or "
+                            "digits once normalised, so it cannot be checked for duplicates")
+                s.cite("R5", "stopped", s.reason)
+                st.outcome, st.detail, st.rules_cited = "needs_human", s.reason, ["R5", "R8"]
+                return s
+            # There is no supplier-invoice intake yet: the invoice is generated
+            # from the order. When nobody supplied its number, the generated
+            # one says so (SIM-...) rather than passing as the supplier's.
+            bill_no = given or f"SIM-{s.ctx.run_id[:6].upper()}"
+            if not given:
+                st.tool_calls.append({"kind": "note", "name": "simulated_invoice",
+                                      "result": f"no supplier invoice number; using {bill_no}"})
 
             ledger = booked_invoices(self.erp, s.request.supplier)
             dup = find_duplicate_invoice(s.request.supplier, bill_no, ledger)

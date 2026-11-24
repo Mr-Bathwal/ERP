@@ -183,9 +183,16 @@ raised by a buyer by hand.
 ## R11 — Billed quantity and unordered lines
 
 An invoice may bill an item for **at most the quantity received**, within the
-same allowance R4 gives a receipt. Beyond that the line is
-`billed_over_received` and payment for it is held. An invoice line for an
-item that is **not on the Purchase Order** is `unordered_line` and is held.
+same money allowance R3 gives a price: the value billed beyond what was
+received, at the order's rate, may not exceed the tighter of 5% of the
+billed line or ₹500. Beyond that the line is `billed_over_received` and
+payment for it is held. An invoice line for an item that is **not on the
+Purchase Order** is `unordered_line` and is held.
+
+> **Why money, not units.** R4's "greater of 2% or 1 unit" exists for
+> counting artefacts in a receipt. Paying for goods that did not arrive is
+> a money event: reusing R4's allowance here waved through one undelivered
+> drum of hydraulic oil, ₹18,650, as a rounding error.
 
 > **Why a third leg.** R3 compares the invoice with the order and R4 compares
 > the receipt with the order. Neither compares the invoice with the receipt,
@@ -307,7 +314,7 @@ related orders are listed for the approver.
 | R8 | Authority | — | never automatic |
 | R9 | Missing receipt | no receipt for invoice | `missing_receipt`, hold |
 | R10 | Run ceiling | > ₹5,00,000 | stop, raise by hand |
-| R11 | Billed vs received | R4 allowance on receipt | `billed_over_received` / `unordered_line`, hold |
+| R11 | Billed vs received | value beyond receipt > 5% of line or ₹500, tighter | `billed_over_received` / `unordered_line`, hold |
 | R12 | Approval validity | authority table, not the requester, digest unchanged | approval refused or voided |
 | R13 | Untrusted documents | instructions, hidden text < 2 pt, payment change, ungrounded value | quarantine / escalate |
 | R14 | Price vs list | unpriced line, or above list beyond R3 | price from list / approval required |

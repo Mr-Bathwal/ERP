@@ -1,0 +1,16 @@
+name: one_rod_short_billed_in_full
+input: seed/samples/req-short-delivery.txt
+category: quantity / receipt
+why: >
+  59 of 60 rods arrived, inside R4's allowance for the receipt, and the bill
+  is for all 60. The rod that never arrived costs Rs1,240, above R11's money
+  limit (the tighter of 5% of the line or Rs500), so the bill is held. Under
+  v3's first R11, which reused R4's unit allowance, this was clean.
+approve: true
+approver: proc.manager
+plan:
+  received_qty: {STL-ROD-20: 59}
+expect:
+  state: completed_with_exceptions
+  exceptions: [billed_over_received]
+  rules_cited: [R11]

@@ -662,3 +662,43 @@ def test_a_server_that_reprices_the_order_is_caught_by_reading_its_total_back(ag
     assert s.state is RunState.NEEDS_HUMAN
     assert "stored a total of" in s.reason and "read-back verification failed" in s.reason
     assert all(d["docstatus"] == 0 for d in erp.docs["Purchase Order"].values())
+
+
+# ---------------------------------------------------------------------------
+# Review findings: R11 in money, full-width numbers, empty keys fail closed
+# ---------------------------------------------------------------------------
+
+
+def test_one_undelivered_drum_billed_in_full_is_an_exception():
+    """4 ordered at Rs18,650, 3 received, 4 billed: Rs18,650 for nothing."""
+    res = three_way_match(_d("PO", [("LUB", 4, 18650)]), _d("GRN", [("LUB", 3, 18650)]),
+                          _d("INV", [("LUB", 4, 18650)]))
+    assert "billed_over_received" in res.types
+
+
+def test_one_bolt_over_billed_within_the_money_limit_is_clean():
+    """59 counted, 60 billed at Rs12: Rs12 is inside 5% of Rs720."""
+    res = three_way_match(_d("PO", [("B", 60, 12)]), _d("GRN", [("B", 59, 12)]),
+                          _d("INV", [("B", 60, 12)]))
+    assert res.matched
+
+
+@pytest.mark.parametrize("a,b", [("ＩＮＶ-００４２", "INV-0042"), ("INV-42", "INV-0042")])
+def test_full_width_and_leading_zero_numbers_are_one_invoice(a, b):
+    from procureflow.match import find_duplicate_invoice, normalise_invoice_no
+    assert normalise_invoice_no(a) == normalise_invoice_no(b) != ""
+    assert find_duplicate_invoice("S", a, [{"name": "PI-1", "supplier": "S", "bill_no": b}])
+
+
+def test_an_invoice_number_with_nothing_in_it_fails_closed(agent):
+    from procureflow.graph import RunPlan
+    s, _ = agent.run(sample("req-happy.txt"), plan=RunPlan(supplier_invoice_no="--/--"),
+                     today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN and "R5" in s.rules
+
+
+def test_a_generated_invoice_number_says_it_was_generated(agent):
+    s, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.invoice.get("bill_no").startswith("SIM-")
+    step = next(x for x in tr.steps if x.node == "create_purchase_invoice")
+    assert any(c.get("name") == "simulated_invoice" for c in step.tool_calls)

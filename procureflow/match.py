@@ -24,6 +24,7 @@ useless, so each is tested in both directions.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -223,12 +224,26 @@ class MatchResult:
 
 
 def normalise_invoice_no(raw: str) -> str:
-    """R5's comparison key: upper-cased, stripped of everything but alphanumerics.
+    """R5's comparison key: NFKC-folded, upper-cased, alphanumerics only,
+    leading zeros dropped from every run of digits.
 
-    `INV-0042`, `inv 0042` and `INV0042` collapse to `INV0042`. An exact
-    string check would find only the duplicates that were never a risk.
+    `INV-0042`, `inv 0042`, `INV42` and the full-width `ＩＮＶ-００４２` are one
+    key, `INV42`. The NFKC step matters more than it looks: without it a
+    full-width number normalised to the empty string, and the duplicate
+    check -- which treats an empty key as "nothing to compare" -- failed
+    open. An exact string check would find only the duplicates that were
+    never a risk.
     """
-    return re.sub(r"[^A-Za-z0-9]", "", str(raw or "")).upper()
+    return _strip_zeros(_alnum(raw))
+
+
+def _alnum(raw: str) -> str:
+    folded = unicodedata.normalize("NFKC", str(raw or ""))
+    return re.sub(r"[^A-Za-z0-9]", "", folded).upper()
+
+
+def _strip_zeros(key: str) -> str:
+    return re.sub(r"(?<!\d)0+(?=\d)", "", key)
 
 
 def find_duplicate_invoice(supplier: str, invoice_no: str,
@@ -260,8 +275,7 @@ def lookalike_key(raw: str) -> str:
     Look-alike letters become their digits and leading zeros are dropped from
     every run of digits, so `INV-0042`, `INV-42` and `lNV-OO42` share a key.
     """
-    key = normalise_invoice_no(raw).translate(_LOOKALIKE)
-    return re.sub(r"(?<!\d)0+(?=\d)", "", key)
+    return _strip_zeros(_alnum(raw).translate(_LOOKALIKE))
 
 
 def find_possible_duplicates(supplier: str, invoice_no: str, amount_paise: int,
@@ -477,7 +491,11 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
             ))
             res.rules_cited.append("R11")
 
-        # R11, second half: billed more than was received, beyond R4's allowance.
+        # R11, second half: billed more than was received. Valued in money at
+        # the order's rate, against R3's tighter limit -- not in units against
+        # R4's allowance. R4's "greater of 2% or 1 unit" exists for counting
+        # artefacts; reused here it waved through one undelivered drum of
+        # hydraulic oil, Rs18,650, as a rounding error.
         # Only meaningful when there is a receipt; with none, R9 already holds.
         if receipt is not None:
             for code, inv in inv_items.items():
@@ -486,8 +504,13 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
                 grn = grn_items.get(code)
                 received = grn["qty"] if grn else Decimal(0)
                 over = inv["qty"] - received
-                limit = tol.qty_limit(received)
-                if over <= limit:
+                if over <= 0:
+                    continue
+                rate_p = int(po_items[code]["rate_paise"])
+                over_p = line_paise(rate_p, over)
+                billed_p = line_paise(rate_p, inv["qty"])
+                limit_p = min(tol.pct_limit_paise(billed_p), tol.price_abs_paise)
+                if over_p <= limit_p:
                     continue
                 uom = po_items[code]["uom"]
                 res.exceptions.append(MatchException(
@@ -496,9 +519,9 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
                     invoice_name=res.invoice_name,
                     expected=f"at most {received:g} {uom} (received)",
                     actual=f"{inv['qty']:g} {uom} billed",
-                    variance=f"{over:+g}",
+                    variance=f"{over:+g} {uom} = {rupees(over_p, sign=True)}",
                     variance_pct=float(over / received * 100) if received else 100.0,
-                    tolerance=f"R4's allowance on the received quantity (= {limit:g})",
+                    tolerance=f"{rupees(limit_p)} (R3's tighter limit on the billed line)",
                     suggested_action=(f"Pay for {received:g} at most. Ask the supplier for a "
                                       "credit note or wait for the balance to be received."),
                     detail="The invoice is checked against the goods receipt: paying for goods "
