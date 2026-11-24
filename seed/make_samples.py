@@ -98,6 +98,60 @@ EMAILS: dict[str, str] = {
         T. Pillai
         """,
 
+    # R15: two orders to one supplier, two days apart, each Rs37,300 -- under
+    # the Rs50,000 threshold on its own, Rs74,600 together.
+    "req-split-a": """\
+        Subject: Hydraulic oil - line 1
+
+        Please raise an order on Deccan Steel & Alloys.
+
+        - 2 nos Hydraulic oil ISO VG68 210L @ 18650.00
+
+        Needed by 2026-12-20.
+
+        S. Nambiar
+        """,
+
+    "req-split-b": """\
+        Subject: Hydraulic oil - line 3
+
+        Please raise an order on Deccan Steel & Alloys.
+
+        - 2 nos Hydraulic oil ISO VG68 210L @ 18650.00
+
+        Needed by 2026-12-22.
+
+        S. Nambiar
+        """,
+
+    # R14: a small order, quoted at Rs14.00 against a list price of Rs12.00.
+    # The invoice will match the order perfectly; the order is what is wrong.
+    "req-overpriced": """\
+        Subject: Bolts for the jig rebuild
+
+        Please raise a PO on Bharat Fasteners Pvt Ltd for the following:
+
+        - 500 nos Hex bolt M8x40 stainless @ 14.00
+
+        Needed by 2026-12-19.
+
+        K. Rao
+        """,
+
+    # R14: no price stated anywhere. Until v3 this was valued at zero and
+    # went under R1 and R10; at list price it is Rs74,60,000.
+    "req-unpriced": """\
+        Subject: hydraulic oil for all lines
+
+        Please raise a PO on Deccan Steel & Alloys for the following:
+
+        - 400 nos Hydraulic oil ISO VG68 210L
+
+        Needed by 2026-12-20.
+
+        S. Nambiar
+        """,
+
     # R12: Rs2,23,800 is inside R10 but above the Procurement Manager's
     # Rs2,00,000 authority, so only the Head of Finance may approve it.
     "req-authority-limit": """\

@@ -1,0 +1,14 @@
+name: split_order_needs_approval
+input: seed/samples/req-split-b.txt
+category: authority
+why: >
+  Rs37,300 is under the Rs50,000 threshold. So was the order to the same
+  supplier earlier in the week. Together they are Rs74,600, and R15 routes
+  the second to an approver with the first one named.
+before:
+  - input: seed/samples/req-split-a.txt
+expect:
+  state: awaiting_approval
+  approval_required: true
+  rules_cited: [R15]
+  not_submitted: true

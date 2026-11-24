@@ -123,6 +123,7 @@ class ExceptionType(str, Enum):
     MISSING_RECEIPT = "missing_receipt"
     BILLED_OVER_RECEIVED = "billed_over_received"
     UNORDERED_LINE = "unordered_line"
+    POSSIBLE_DUPLICATE = "possible_duplicate"
 
 
 @dataclass(frozen=True)
@@ -250,6 +251,57 @@ def find_duplicate_invoice(supplier: str, invoice_no: str,
     return None
 
 
+_LOOKALIKE = str.maketrans({"O": "0", "I": "1", "L": "1", "S": "5", "B": "8"})
+
+
+def lookalike_key(raw: str) -> str:
+    """R5's second net: the invoice number as an OCR or a tired clerk might misread it.
+
+    Look-alike letters become their digits and leading zeros are dropped from
+    every run of digits, so `INV-0042`, `INV-42` and `lNV-OO42` share a key.
+    """
+    key = normalise_invoice_no(raw).translate(_LOOKALIKE)
+    return re.sub(r"(?<!\d)0+(?=\d)", "", key)
+
+
+def find_possible_duplicates(supplier: str, invoice_no: str, amount_paise: int,
+                             posting_date: str, ledger: Iterable[dict[str, Any]], *,
+                             window_days: int = 30, exclude: str = "") -> list[dict[str, Any]]:
+    """Invoices that are probably this one under a different number (R5, held).
+
+    Same supplier, booked within `window_days`, and either a number that is
+    the same once look-alikes and leading zeros are set aside, or a
+    different number for exactly the same amount. An exact match after
+    normalising is not returned here: that is `find_duplicate_invoice`'s
+    job, and it blocks rather than holds.
+    """
+    from datetime import date
+    try:
+        when = date.fromisoformat(str(posting_date)[:10])
+    except ValueError:
+        when = None
+    key, exact = lookalike_key(invoice_no), normalise_invoice_no(invoice_no)
+    out: list[dict[str, Any]] = []
+    for row in ledger:
+        if row.get("name") == exclude or str(row.get("supplier", "")) != str(supplier):
+            continue
+        other = row.get("bill_no") or row.get("supplier_invoice_no") or ""
+        if normalise_invoice_no(other) == exact:
+            continue
+        if when is not None:
+            try:
+                then = date.fromisoformat(str(row.get("posting_date"))[:10])
+                if abs((when - then).days) > window_days:
+                    continue
+            except ValueError:
+                pass
+        amount = paise(row.get("total") if row.get("total") is not None
+                       else row.get("grand_total"))
+        if (key and lookalike_key(other) == key) or (amount_paise and amount == amount_paise):
+            out.append(row)
+    return out
+
+
 def _by_item(items: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Index lines by item code, summing where an item appears twice.
 
@@ -281,7 +333,8 @@ def _by_item(items: Iterable[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 def three_way_match(po: Any, receipt: Any, invoice: Any, *,
                     tol: Tolerances | None = None,
-                    duplicate_of: dict[str, Any] | None = None) -> MatchResult:
+                    duplicate_of: dict[str, Any] | None = None,
+                    possible_duplicates: list[dict[str, Any]] | None = None) -> MatchResult:
     """Compare order, receipt and invoice and classify every disagreement.
 
     `po`, `receipt` and `invoice` are `Doc`-shaped: anything with `.name` and
@@ -322,6 +375,20 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
         ))
         res.rules_cited.append("R5")
         return res          # R8: nothing else matters once this fires
+
+    for other in possible_duplicates or []:
+        res.exceptions.append(MatchException(
+            type=ExceptionType.POSSIBLE_DUPLICATE, rule_id="R5",
+            item_code="—", po_name=res.po_name, invoice_name=res.invoice_name,
+            expected="no near-identical invoice from this supplier",
+            actual=(f"{other.get('name')} (supplier no. {other.get('bill_no')!r}, "
+                    f"{rupees(paise(other.get('total') or other.get('grand_total')))})"),
+            suggested_action="Hold. Compare the two with the supplier's statement before "
+                             "paying either a second time.",
+            detail="Numbers that differ only in look-alike characters or leading zeros, or "
+                   "a different number for exactly the same amount, within the R5 window.",
+        ))
+        res.rules_cited.append("R5")
 
     po_items = _by_item(getattr(po, "items", []) or [])
     res.lines_checked = len(po_items)

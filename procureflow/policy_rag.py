@@ -186,6 +186,8 @@ class PolicyNumbers:
     preferred: tuple[str, ...] = field(default_factory=tuple)
     approvers: tuple[Approver, ...] = field(default_factory=tuple)
     hidden_font_pt: float = 2.0
+    split_window_days: int = 7
+    duplicate_window_days: int = 30
     source: str = "policy/procurement_policy.md"
 
 
@@ -243,6 +245,14 @@ def read_numbers(rules: list[Rule] | None = None) -> PolicyNumbers:
     if (r13 := by_id.get("R13")):
         if (m := re.search(r"\*\*(\d+(?:\.\d+)?)\s*pt\*\*", r13.text)):
             n.hidden_font_pt = float(m.group(1))
+
+    if (r15 := by_id.get("R15")):
+        if (m := re.search(r"\*\*(\d+)\s*days?\*\*", r15.text)):
+            n.split_window_days = int(m.group(1))
+
+    if (r5 := by_id.get("R5")):
+        if (m := re.search(r"\*\*(\d+)\s*days?\*\*", r5.text)):
+            n.duplicate_window_days = int(m.group(1))
 
     return n
 

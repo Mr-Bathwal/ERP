@@ -146,7 +146,8 @@ def booked_invoices(erp: Any, supplier: str) -> list[dict[str, Any]]:
     """Everything already invoiced for this supplier — R5's haystack."""
     return erp.list_docs("Purchase Invoice",
                          filters={"supplier": supplier},
-                         fields=["name", "supplier", "bill_no", "grand_total"],
+                         fields=["name", "supplier", "bill_no", "total", "grand_total",
+                                 "posting_date"],
                          limit=200)
 
 
@@ -380,7 +381,23 @@ def create_purchase_order(erp: Any, ctx: RunContext, *, mr: Doc, supplier: str,
     doc, how = insert_exactly_once(erp, "Purchase Order", payload,
                                    key=idempotency_key(ctx, "po"),
                                    verify={"supplier": supplier})
-    call.result = f"{how} {doc.name} ({route})"
+
+    # R10 was checked against what we *sent*. The server prices lines too
+    # (price lists, pricing rules, a default discount), so the total it
+    # stored is read back and must agree -- to within one paisa a line, which
+    # is the server's own rounding of qty x rate, not a change. A stored
+    # total that disagrees, or breaches the ceiling, is never submitted.
+    stored = paise(doc.get("total") if doc.get("total") is not None else doc.get("grand_total"))
+    lines = max(len(doc.items), 1)
+    if abs(stored - total_p) > lines:
+        raise VerificationError(
+            f"Purchase Order {doc.name} stored a total of {rupees(stored)}; "
+            f"{rupees(total_p)} was sent", doctype="Purchase Order")
+    if stored > ceiling_paise:
+        raise ToolRefused(f"R10: Purchase Order {doc.name} was stored at {rupees(stored)}, "
+                          f"above the {rupees(ceiling_paise)} ceiling. It stays a draft; "
+                          "raise it by hand.")
+    call.result = f"{how} {doc.name} ({route}); stored total {rupees(stored)} verified"
     call.docs = [doc.name]
     return doc, call
 

@@ -101,6 +101,7 @@ def _sheet_summary(wb: Workbook, exc_rows: list[dict[str, Any]],
         "qty_over": "More arrived than was ordered, beyond R4.",
         "duplicate_invoice": "This supplier invoice number is already booked (R5).",
         "missing_receipt": "Invoiced with no goods receipt. Held, not rejected (R9).",
+        "possible_duplicate": "Look-alike number or same amount within 30 days (R5). Held.",
         "billed_over_received": "Billed for more than arrived, beyond R4's allowance (R11).",
         "unordered_line": "An invoice line for an item that is not on the order (R11).",
     }

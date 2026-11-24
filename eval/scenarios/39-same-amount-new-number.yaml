@@ -1,0 +1,14 @@
+name: same_amount_new_number_held
+input: seed/samples/req-happy.txt
+category: duplicate detection
+why: >
+  A resubmission with a fresh number (BF-7790 after BF-7781) for exactly the
+  same amount, within R5's 30-day window: held for a person to compare.
+repeat_with_same_bill_no: true
+first_bill_no: BF-7781
+plan:
+  supplier_invoice_no: BF-7790
+expect:
+  state: completed_with_exceptions
+  exceptions: [possible_duplicate]
+  rules_cited: [R5]

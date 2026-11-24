@@ -36,13 +36,14 @@ from pathlib import Path
 from typing import Any, Literal
 
 from . import approval, screen
-from .config import PurchaseRequest, RunContext, RunState
+from .config import PurchaseRequest, RunContext, RunState, settings
 from .erp.client import Doc, ERPError, VerificationError
 from .extract import Catalogue, dates_in, extract, read_source, resolve_items
 from .match import (
     MatchResult,
     Tolerances,
     find_duplicate_invoice,
+    find_possible_duplicates,
     line_paise,
     paise,
     rupees,
@@ -115,6 +116,7 @@ class State:
     invoice: Doc | None = None
 
     match: MatchResult | None = None
+    possible_duplicates: list[dict[str, Any]] = field(default_factory=list)
     # RUNNING, not FAILED. The driver breaks out of the sequence on any
     # terminal state, so defaulting to FAILED ended every run after its
     # first node with an empty reason.
@@ -154,6 +156,35 @@ class Agent:
             qty_pct=self.numbers.qty_pct,
             qty_abs_units=self.numbers.qty_abs_units,
         )
+
+    # -- reads the policy checks need ---------------------------------------
+
+    def _price_list(self) -> dict[str, int]:
+        """Item code to buying price-list rate, in paise (R14)."""
+        rows = self.erp.list_docs("Item Price", filters={"price_list": settings.price_list},
+                                  fields=["item_code", "price_list_rate"], limit=1000)
+        return {str(r["item_code"]): paise(r.get("price_list_rate")) for r in rows
+                if r.get("item_code")}
+
+    def _recent_orders(self, supplier: str, today: date) -> list[tuple[str, int]]:
+        """Orders to `supplier` in R15's window, not cancelled, with their values."""
+        since = today - timedelta(days=self.numbers.split_window_days)
+        rows = self.erp.list_docs(
+            "Purchase Order", filters={"supplier": supplier},
+            fields=["name", "total", "grand_total", "transaction_date", "docstatus"],
+            limit=200)
+        out: list[tuple[str, int]] = []
+        for r in rows:
+            if int(r.get("docstatus") or 0) == 2:
+                continue
+            try:
+                when = date.fromisoformat(str(r.get("transaction_date"))[:10])
+            except ValueError:
+                continue
+            if since <= when <= today:
+                total = r.get("total") if r.get("total") is not None else r.get("grand_total")
+                out.append((str(r["name"]), paise(total)))
+        return out
 
     # -- nodes ------------------------------------------------------------
 
@@ -260,18 +291,64 @@ class Agent:
                                   "backend": self.policy.backend,
                                   "returned": [r.rule_id for r in rules]})
 
-            s.po_value_paise = sum(line_paise(paise(i.rate or 0), i.qty or 0)
-                                   for i in req.items)
+            # R14: every line is valued, and a stated price is checked
+            # against the buying price list. Until v3 a line with no rate
+            # was valued at zero -- which put an unpriced order of any size
+            # under R1 *and* R10.
+            prices = self._price_list()
+            unpriced: list[str] = []
+            dear: list[str] = []
+            for i in req.items:
+                list_p = prices.get(i.item_code or "")
+                if i.rate is None:
+                    if list_p is None:
+                        unpriced.append(i.item_code or i.description)
+                        continue
+                    i.rate = list_p / 100
+                    s.cite("R14", "priced from list",
+                           f"{i.item_code}: no rate stated; {rupees(list_p)} from "
+                           f"{settings.price_list}")
+                elif list_p is not None:
+                    over = paise(i.rate) - list_p
+                    if over > self.tol.price_limit(list_p):
+                        dear.append(f"{i.item_code} at {rupees(paise(i.rate))} against a list "
+                                    f"price of {rupees(list_p)} ({rupees(over, sign=True)})")
+            if unpriced:
+                s.state = RunState.NEEDS_HUMAN
+                s.reason = ("R14: the order cannot be valued, so R1 and R10 cannot be "
+                            f"checked: no stated rate and no list price for {', '.join(unpriced)}")
+                s.cite("R14", "stopped", s.reason)
+                st.outcome, st.detail = "needs_human", s.reason
+                st.rules_cited = [*st.rules_cited, "R14"]
+                return s
 
-            if s.po_value_paise > self.numbers.approval_ceiling_paise:
+            s.po_value_paise = sum(line_paise(paise(i.rate), i.qty or 0) for i in req.items)
+            ceiling = self.numbers.approval_ceiling_paise
+            if s.po_value_paise > ceiling:
                 s.needs_approval = True
                 s.cite("R1", "approval required",
-                       f"{rupees(s.po_value_paise)} is above the "
-                       f"{rupees(self.numbers.approval_ceiling_paise)} ceiling")
-            else:
-                s.cite("R1", "auto-approved",
-                       f"{rupees(s.po_value_paise)} is at or below the "
-                       f"{rupees(self.numbers.approval_ceiling_paise)} ceiling")
+                       f"{rupees(s.po_value_paise)} is above the {rupees(ceiling)} ceiling")
+            if dear:
+                s.needs_approval = True
+                s.cite("R14", "approval required",
+                       "priced above the buying list beyond R3's tolerance: " + "; ".join(dear))
+
+            # R15: an order under the threshold on its own may be one piece
+            # of an order that is not.
+            if s.po_value_paise <= ceiling:
+                related = self._recent_orders(req.supplier or "", s.ctx.today)
+                combined = s.po_value_paise + sum(v for _, v in related)
+                if related and combined > ceiling:
+                    s.needs_approval = True
+                    s.cite("R15", "approval required",
+                           f"{rupees(s.po_value_paise)} now plus "
+                           + ", ".join(f"{n} ({rupees(v)})" for n, v in related)
+                           + f" in the last {self.numbers.split_window_days} days is "
+                           f"{rupees(combined)}, above the {rupees(ceiling)} R1 threshold")
+                elif not s.needs_approval:
+                    s.cite("R1", "auto-approved",
+                           f"{rupees(s.po_value_paise)} is at or below the "
+                           f"{rupees(ceiling)} ceiling")
 
             if req.supplier not in self.numbers.preferred and self.numbers.preferred:
                 s.substitution = (
@@ -465,11 +542,24 @@ class Agent:
             tr.invoice_name = inv.name
             st.erp_docs = [inv.name]
             st.detail = f"Purchase Invoice {inv.name} for {bill_no}"
+
+            # R5's second net, run against the stored invoice's own total.
+            if not s.ctx.dry_run:
+                amount = paise(inv.get("total") if inv.get("total") is not None
+                               else inv.get("grand_total"))
+                s.possible_duplicates = find_possible_duplicates(
+                    s.request.supplier, bill_no, amount,
+                    str(inv.get("posting_date") or s.ctx.today), ledger,
+                    window_days=self.numbers.duplicate_window_days, exclude=inv.name)
+                if s.possible_duplicates:
+                    st.detail += ("; possible duplicate of "
+                                  + ", ".join(str(d.get("name")) for d in s.possible_duplicates))
         return s
 
     def n_three_way_match(self, s: State, tr: Tracer) -> State:
         with tr.step("three_way_match") as st:
-            s.match = three_way_match(s.po, s.receipt, s.invoice, tol=self.tol)
+            s.match = three_way_match(s.po, s.receipt, s.invoice, tol=self.tol,
+                                      possible_duplicates=s.possible_duplicates)
             for e in s.match.exceptions:
                 s.cite(e.rule_id, e.type.value, e.detail)
             st.rules_cited = s.match.rules_cited

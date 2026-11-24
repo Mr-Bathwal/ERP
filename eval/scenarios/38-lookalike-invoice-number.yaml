@@ -1,0 +1,15 @@
+name: lookalike_invoice_number_held
+input: seed/samples/req-happy.txt
+category: duplicate detection
+why: >
+  The same invoice booked again as BF/2611/O042 (letter O) after BF/2611/0042
+  (zero). Exact-after-normalising does not match them; the look-alike key
+  does, and the second is held as a possible duplicate.
+repeat_with_same_bill_no: true
+first_bill_no: BF/2611/0042
+plan:
+  supplier_invoice_no: BF/2611/O042
+expect:
+  state: completed_with_exceptions
+  exceptions: [possible_duplicate]
+  rules_cited: [R5]

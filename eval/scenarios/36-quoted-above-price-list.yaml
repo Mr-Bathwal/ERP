@@ -1,0 +1,12 @@
+name: quoted_above_price_list_needs_approval
+input: seed/samples/req-overpriced.txt
+category: price variance
+why: >
+  Rs7,000 is far under R1, but the bolts are quoted at Rs14.00 against a list
+  price of Rs12.00. The invoice will match the order exactly, so R3 would
+  never see it; R14 sends the order to an approver with the variance shown.
+expect:
+  state: awaiting_approval
+  approval_required: true
+  rules_cited: [R14]
+  not_submitted: true

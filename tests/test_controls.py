@@ -566,3 +566,99 @@ def test_an_invented_date_or_supplier_is_ungrounded_too():
     bad = scr.ground(req, "Bharat Fasteners: 500 nos Hex bolt M8x40 @ 12.00 by 2026-12-15",
                      dates_in_text={"2026-12-15"})
     assert any("supplier" in b for b in bad) and any("needed-by" in b for b in bad)
+
+
+# ---------------------------------------------------------------------------
+# R14 price against the list, R15 split orders, R5 near-duplicates,
+# and R10 against the total the server actually stored
+# ---------------------------------------------------------------------------
+
+from procureflow.match import find_possible_duplicates, lookalike_key  # noqa: E402
+
+
+def test_an_unpriced_order_of_any_size_no_longer_slips_under_every_threshold(agent, erp):
+    s, _ = agent.run(sample("req-unpriced.txt"), today=TODAY)
+    assert s.state is RunState.BLOCKED and "R10" in s.rules and "R14" in s.rules
+    assert not erp.docs.get("Purchase Order"), "the R10 check runs before the write"
+
+
+def test_a_line_with_no_price_anywhere_stops_the_run(agent, erp):
+    del erp.docs["Item Price"]["IP-LUB-HYD-68"]
+    s, _ = agent.run(sample("req-unpriced.txt"), today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN
+    assert "cannot be valued" in s.reason and "LUB-HYD-68" in s.reason
+
+
+def test_a_quote_inside_the_price_band_needs_no_approval(agent):
+    """12.50 against a 12.00 list price is inside R3's band (5% = 0.60)."""
+    import tempfile
+    from pathlib import Path
+    text = Path(sample("req-overpriced.txt")).read_text().replace("@ 14.00", "@ 12.50")
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+        f.write(text)
+    s, _ = agent.run(f.name, today=TODAY)
+    assert s.state is RunState.COMPLETED and "R14" not in s.rules
+
+
+def test_a_split_order_names_the_order_it_was_split_from(agent):
+    first, _ = agent.run(sample("req-split-a.txt"), today=TODAY)
+    second, _ = agent.run(sample("req-split-b.txt"), today=TODAY)
+    assert first.state is RunState.COMPLETED
+    assert second.state is RunState.AWAITING_APPROVAL
+    r15 = next(c for c in second.citations if c["rule_id"] == "R15")
+    assert first.po.name in r15["detail"] and "74,600.00" in r15["detail"]
+
+
+def test_a_cancelled_or_old_order_does_not_count_towards_a_split(agent, erp):
+    from datetime import timedelta
+    first, _ = agent.run(sample("req-split-a.txt"), today=TODAY)
+    erp.docs["Purchase Order"][first.po.name]["docstatus"] = 2
+    s, _ = agent.run(sample("req-split-b.txt"), today=TODAY)
+    assert "R15" not in s.rules and not s.needs_approval
+    old, _ = agent.run(sample("req-split-a.txt"), today=TODAY - timedelta(days=10))
+    s2, _ = agent.run(sample("req-split-b.txt"), today=TODAY)
+    assert "R15" in s2.rules, "the completed order from 'today' still counts"
+    assert old.po.name not in next(c for c in s2.citations if c["rule_id"] == "R15")["detail"]
+
+
+@pytest.mark.parametrize("a,b", [
+    ("BF/2611/0042", "BF/2611/O042"), ("INV-0042", "INV-42"), ("INV-0042", "lNV-OO42"),
+    ("S-1188", "5-1188"), ("B-77", "8-77"),
+])
+def test_look_alike_invoice_numbers_share_a_key(a, b):
+    assert lookalike_key(a) == lookalike_key(b)
+
+
+def test_a_same_amount_invoice_outside_the_window_is_not_a_near_duplicate():
+    ledger = [{"name": "ACC-PINV-1", "supplier": "S", "bill_no": "A-1", "total": 6360.0,
+               "posting_date": "2026-09-01"}]
+    assert find_possible_duplicates("S", "A-2", 636000, "2026-11-24", ledger,
+                                    window_days=30) == []
+    assert find_possible_duplicates("S", "A-2", 636000, "2026-09-20", ledger,
+                                    window_days=30)
+
+
+def test_an_exact_duplicate_is_blocked_not_merely_held():
+    ledger = [{"name": "ACC-PINV-1", "supplier": "S", "bill_no": "INV-42", "total": 1.0,
+               "posting_date": "2026-11-20"}]
+    assert find_possible_duplicates("S", "inv 42", 100, "2026-11-24", ledger) == []
+
+
+def test_a_server_that_reprices_the_order_is_caught_by_reading_its_total_back(agent, erp):
+    """The server applied a pricing rule (+10%) the agent never sent."""
+    original = erp._derive
+
+    def repricing(doctype, payload):
+        row = original(doctype, payload)
+        if doctype == "Purchase Order":
+            for it in row["items"]:
+                it["rate"] = round(it["rate"] * 1.1, 2)
+                it["amount"] = round(it["qty"] * it["rate"], 2)
+            row["total"] = row["grand_total"] = round(sum(i["amount"] for i in row["items"]), 2)
+        return row
+
+    erp._derive = repricing
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN
+    assert "stored a total of" in s.reason and "read-back verification failed" in s.reason
+    assert all(d["docstatus"] == 0 for d in erp.docs["Purchase Order"].values())

@@ -58,6 +58,7 @@ class Settings:
     abbr: str = os.getenv("PF_ABBR", "PFD")
     warehouse: str = os.getenv("PF_WAREHOUSE", "Stores - PFD")
     currency: str = "INR"
+    price_list: str = os.getenv("PF_PRICE_LIST", "Standard Buying")   # R14
 
     # R10. Held here as well as in the policy because it is a circuit
     # breaker: if policy retrieval itself fails, this still applies.

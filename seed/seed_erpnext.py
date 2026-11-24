@@ -33,7 +33,7 @@ from procureflow.erp.fake import demo_company  # noqa: E402
 COMPANY = settings.company
 ABBR = settings.abbr
 WAREHOUSE = settings.warehouse
-PRICE_LIST = "Standard Buying"
+PRICE_LIST = settings.price_list
 
 
 def _masters() -> tuple[list[dict], list[dict], list[dict]]:

@@ -239,6 +239,13 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
         agent.run(sc["input"], scenario=sc["name"] + "/first", plan=first,
                   approve=True, approver=sc.get("approver", ""), today=TODAY)
 
+    # History the scenario needs to exist first, e.g. the earlier half of a
+    # split order (R15). Each runs to completion in the same ERP.
+    for k, prior in enumerate(sc.get("before") or []):
+        agent.run(prior["input"], scenario=f"{sc['name']}/before-{k + 1}",
+                  plan=RunPlan(**(prior.get("plan") or {})), approve=prior.get("approve"),
+                  approver=prior.get("approver", ""), today=TODAY)
+
     t0 = time.perf_counter()
     s, tr = agent.run(sc["input"], scenario=sc["name"], plan=plan,
                       dry_run=bool(sc.get("dry_run")),

@@ -1,0 +1,12 @@
+name: unpriced_order_is_valued_from_the_price_list
+input: seed/samples/req-unpriced.txt
+category: authority
+why: >
+  400 drums of hydraulic oil with no price stated. v2 valued every unpriced
+  line at zero, so this went under R1 and R10 and was submitted at Rs0. Valued
+  at the buying list (R14) it is Rs74,60,000, and R10 stops it before an order
+  is written.
+expect:
+  state: blocked
+  rules_cited: [R14, R10]
+  reason_contains: R10

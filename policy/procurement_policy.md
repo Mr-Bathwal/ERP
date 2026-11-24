@@ -1,6 +1,6 @@
 # Procurement Policy — ProcureFlow Demo Pvt Ltd
 
-**Version 1.6** · Effective 2026-11-24 · Owner: Head of Supply Chain
+**Version 2.0** · Effective 2026-11-24 · Owner: Head of Supply Chain
 **Applies to:** all indirect and raw-material purchasing routed through ERPNext.
 
 This document is the process. ProcureFlow holds no thresholds in code — the
@@ -95,6 +95,18 @@ be **blocked**. Comparison ignores case, spaces and punctuation, so
 > duplicates that were never a risk.
 
 **This rule can never be auto-approved**, regardless of value. See R8.
+
+An invoice is also **held** as a `possible_duplicate` when, against an
+invoice from the same supplier booked in the previous **30 days**, its number
+differs only in look-alike characters or leading zeros (`O`/`0`, `I`/`l`/`1`,
+`S`/`5`, `B`/`8`), or it carries a different number for exactly the same
+amount. These are held rather than blocked: recurring supplies can share an
+amount honestly, and a person can tell in a minute.
+
+> **Why a second net.** Exact-after-normalising catches re-keying. It does
+> not catch OCR reading `0` as `O`, a clerk dropping a leading zero, or a
+> resubmission with a fresh number — the near-duplicates audit firms find
+> most often, precisely because exact matching lets them through.
 
 ---
 
@@ -247,6 +259,40 @@ used, and the run stops `needs_human`.
 
 ---
 
+## R14 — Price against the buying price list
+
+Every line is valued before any threshold is applied: at the rate the request
+or quote states, or — if it states none — at the item's rate on the buying
+price list. A line with neither stops the run `needs_human`. A stated rate
+above the list rate by more than R3's tolerance makes the order **require
+approval under R1 whatever its value**, and the approver sees the variance.
+
+> **Why.** R3 compares the invoice with the order. If the order itself was
+> raised at an inflated quoted price, the invoice matches it perfectly and
+> R3 has nothing to say. And until this rule a line with no stated price was
+> valued at zero — which put an unpriced order of any size under R1 *and*
+> R10. An order that cannot be valued cannot be checked against anything.
+
+**Evaluated on:** request or quote rate against `Item Price.price_list_rate`
+on the buying price list, per line.
+
+---
+
+## R15 — Split orders
+
+If the orders to the same supplier raised in the **7 days** before this one
+(not cancelled), together with this one, exceed the R1 threshold, this order
+requires approval even though it is under the threshold on its own. The
+related orders are listed for the approver.
+
+> **Why.** Splitting one purchase into several just under the approval limit
+> is the oldest way round an approval threshold, and each piece passes R1 on
+> its own. It is often innocent — a requester raising lines as they think of
+> them — which is why the effect is an approval with the related orders
+> shown, not a block.
+
+---
+
 ## Rule summary
 
 | Rule | Subject | Threshold | Effect when breached |
@@ -255,7 +301,7 @@ used, and the run stops `needs_human`.
 | R2 | Preferred supplier | item stocked by preferred | propose substitution |
 | R3 | Price variance | 5% or ₹500, tighter | `price_variance` |
 | R4 | Qty variance | 2% or 1 unit, greater | `qty_short` / `qty_over` |
-| R5 | Duplicate invoice | normalised match | blocked, never automatic |
+| R5 | Duplicate invoice | normalised match; look-alike or same amount in 30 days | blocked; `possible_duplicate` held |
 | R6 | Unknown supplier | not in master | escalate, never automatic |
 | R7 | Expedite | needed in < 2 days | flag, continue |
 | R8 | Authority | — | never automatic |
@@ -264,3 +310,5 @@ used, and the run stops `needs_human`.
 | R11 | Billed vs received | R4 allowance on receipt | `billed_over_received` / `unordered_line`, hold |
 | R12 | Approval validity | authority table, not the requester, digest unchanged | approval refused or voided |
 | R13 | Untrusted documents | instructions, hidden text < 2 pt, payment change, ungrounded value | quarantine / escalate |
+| R14 | Price vs list | unpriced line, or above list beyond R3 | price from list / approval required |
+| R15 | Split orders | same supplier, 7 days, combined > R1 | approval required |
