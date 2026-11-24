@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from procureflow.config import settings  # noqa: E402
-from procureflow.erp.client import ERPError  # noqa: E402
+from procureflow.erp.client import IDEMPOTENCY_FIELD, ERPError  # noqa: E402
 from procureflow.erp.fake import demo_company  # noqa: E402
 
 COMPANY = settings.company
@@ -110,6 +110,21 @@ class Seeder:
         self.ensure("Warehouse", WAREHOUSE, {
             "warehouse_name": WAREHOUSE.split(" - ")[0], "company": COMPANY,
             "is_group": 0})
+
+        print("\nCustom fields (idempotency key)")
+        # One unique, read-only, no-copy Data field per document type the
+        # agent creates. Unique makes the database refuse a second document
+        # carrying the same key; no-copy stops ERPNext's mappers carrying a
+        # Material Request's key onto the Purchase Order made from it.
+        for dt in ("Material Request", "Purchase Order", "Purchase Receipt",
+                   "Purchase Invoice"):
+            self.ensure("Custom Field", f"{dt}-{IDEMPOTENCY_FIELD}", {
+                "dt": dt, "fieldname": IDEMPOTENCY_FIELD, "label": "ProcureFlow Key",
+                "fieldtype": "Data", "unique": 1, "read_only": 1, "no_copy": 1,
+                "print_hide": 1, "insert_after": "naming_series",
+                "description": "Set by ProcureFlow so a retried create can never "
+                               "book a second document.",
+            })
 
         print("\nSupplier groups")
         self.ensure("Supplier Group", "Raw Material",

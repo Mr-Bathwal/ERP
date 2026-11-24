@@ -57,6 +57,12 @@ ALLOWED_METHODS = frozenset({
 })
 
 
+#: The custom field every document this application creates carries. Created
+#: by `seed/seed_erpnext.py` as a unique, read-only, no-copy Data field, so the
+#: database itself refuses a second document with the same key.
+IDEMPOTENCY_FIELD = "procureflow_key"
+
+
 def guard_method(dotted_path: str) -> None:
     """Refuse any server method that is not one of the three mappers."""
     if dotted_path not in ALLOWED_METHODS:
@@ -228,21 +234,31 @@ class ERPNextClient:
                 return str(body[key])[:400]
         return f"HTTP {resp.status_code}"
 
-    def _request(self, method: str, path: str, **kw: Any) -> dict[str, Any]:
+    def _request(self, method: str, path: str, *, retry: bool = True,
+                 **kw: Any) -> dict[str, Any]:
         """One HTTP call, with backoff on the failures that are worth retrying.
 
         Retried: timeouts, connection errors and 5xx -- a restarting worker
         or a slow background job. Not retried: 4xx. A 417 validation error
         means the document is wrong, and sending it twice more only puts
         three identical complaints in the log.
+
+        **A create is never retried here** (`retry=False`). A timeout on a
+        POST does not mean the document was not created: the server may
+        have committed it and lost the response. Re-sending it blind is how
+        an integration books the same Purchase Order twice. The retry for a
+        create lives in `tools.insert_exactly_once`, which first looks the
+        document up by its idempotency key and only re-sends if it is not
+        there.
         """
         last: Exception | None = None
-        for attempt in range(self.max_retries):
+        attempts = self.max_retries if retry else 1
+        for attempt in range(attempts):
             try:
                 resp = self._client.request(method, path, **kw)
             except (httpx.TimeoutException, httpx.TransportError) as e:
                 last = e
-                if attempt == self.max_retries - 1:
+                if attempt == attempts - 1:
                     break
                 time.sleep(2 ** attempt * 0.5)
                 continue
@@ -253,13 +269,13 @@ class ERPNextClient:
                 except Exception:                              # noqa: BLE001
                     return {}
 
-            if resp.status_code >= 500 and attempt < self.max_retries - 1:
+            if resp.status_code >= 500 and attempt < attempts - 1:
                 time.sleep(2 ** attempt * 0.5)
                 continue
 
             raise ERPError(self._parse_error(resp), status=resp.status_code)
 
-        raise ERPError(f"{type(last).__name__} after {self.max_retries} attempts: {last}")
+        raise ERPError(f"{type(last).__name__} after {attempts} attempt(s): {last}")
 
     @staticmethod
     def _guard(doctype: str, write: bool) -> None:
@@ -308,7 +324,7 @@ class ERPNextClient:
         reflect the submitted payload more faithfully than the stored row.
         """
         self._guard(doctype, write=True)
-        body = self._request("POST", f"/api/resource/{doctype}", json=payload)
+        body = self._request("POST", f"/api/resource/{doctype}", json=payload, retry=False)
         data = body.get("data") or {}
         name = data.get("name")
         if not name:

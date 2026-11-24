@@ -1,0 +1,16 @@
+name: lost_submit_response_settled_by_read_back
+input: seed/samples/req-happy.txt
+category: resilience
+why: >
+  The submit went through and its response was lost. Submitting again would
+  fail with "already submitted"; the agent asks the document instead, sees
+  docstatus 1 and continues.
+inject_fault:
+  doctype: Purchase Order
+  op: submit
+  status: 504
+  message: "Gateway Timeout"
+  after_commit: true
+expect:
+  state: completed
+  doc_counts: {Purchase Order: 1}

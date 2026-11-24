@@ -33,7 +33,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .config import RunContext, settings
-from .erp.client import ALLOWED_READ, ALLOWED_WRITE, Doc, ERPError
+from .erp.client import (
+    ALLOWED_READ,
+    ALLOWED_WRITE,
+    IDEMPOTENCY_FIELD,
+    Doc,
+    ERPError,
+    VerificationError,
+    _compare,
+)
 from .match import line_paise, paise, rupees
 
 
@@ -143,6 +151,93 @@ def booked_invoices(erp: Any, supplier: str) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Exactly-once writes
+# ---------------------------------------------------------------------------
+
+def idempotency_key(ctx: RunContext, step: str) -> str:
+    """One key per run and step: the same request always carries the same key."""
+    return f"pf-{ctx.run_id}-{step}"
+
+
+def _ambiguous(e: ERPError) -> bool:
+    """Did this failure leave us not knowing whether the write happened?
+
+    A timeout or a 5xx might have committed. A 409 on our unique key means a
+    previous attempt certainly did. A 417 means the document was refused and
+    nothing was written, so it is not ambiguous and is never retried.
+    """
+    return e.status is None or e.status >= 500 or e.status == 409
+
+
+def insert_exactly_once(erp: Any, doctype: str, payload: dict[str, Any], *,
+                        key: str, verify: dict[str, Any] | None = None,
+                        attempts: int = 3) -> tuple[Doc, str]:
+    """Create a document at most once, however the network behaves.
+
+    The key is written into the document. After an ambiguous failure the
+    document is looked up **by key before anything is re-sent**: if it is
+    there, the earlier attempt committed and that document is adopted (and
+    verified like any other); if it is not, re-sending is safe. Two
+    documents carrying one key is impossible in a seeded ERPNext (the field
+    is unique), so finding two is treated as a verification failure rather
+    than resolved by picking one.
+
+    Returns the document and how it was obtained: `created`,
+    `created on attempt N`, or `adopted after an ambiguous failure`.
+    """
+    body = {**payload, IDEMPOTENCY_FIELD: key}
+    check = {**(verify or {}), IDEMPOTENCY_FIELD: key}
+    last: ERPError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            doc = erp.insert(doctype, body, verify=check)
+            return doc, "created" if attempt == 1 else f"created on attempt {attempt}"
+        except VerificationError:
+            raise
+        except ERPError as e:
+            if not _ambiguous(e):
+                raise
+            last = e
+        found = erp.list_docs(doctype, filters={IDEMPOTENCY_FIELD: key},
+                              fields=["name"], limit=2)
+        if len(found) > 1:
+            raise VerificationError(
+                f"{len(found)} {doctype} documents carry the key {key}; expected one",
+                doctype=doctype)
+        if found:
+            doc = erp.get_doc(doctype, found[0]["name"])
+            drift = _compare(check, doc.data)
+            if drift:
+                raise VerificationError(
+                    f"{doctype} {doc.name} found by key differs from what was sent: "
+                    + "; ".join(drift), doctype=doctype)
+            return doc, f"adopted after an ambiguous failure ({last})"
+        time.sleep(0.05 * attempt)
+    assert last is not None
+    raise last
+
+
+def submit_exactly_once(erp: Any, doctype: str, name: str) -> tuple[Doc, str]:
+    """Submit, and if the answer is lost, ask the document rather than retrying.
+
+    A submit whose response timed out may have gone through; submitting
+    again then fails with "already submitted". Either way the question is
+    the document's `docstatus`, so it is read back and decides.
+    """
+    try:
+        return erp.submit(doctype, name), "submitted"
+    except VerificationError:
+        raise
+    except ERPError as e:
+        if not (_ambiguous(e) or "already submitted" in str(e).lower()):
+            raise
+        doc = erp.get_doc(doctype, name)
+        if doc.docstatus == 1:
+            return doc, f"confirmed submitted by read-back after: {e}"
+        raise
+
+
+# ---------------------------------------------------------------------------
 # Writes
 # ---------------------------------------------------------------------------
 
@@ -182,12 +277,13 @@ def create_material_request(erp: Any, ctx: RunContext, *, supplier: str,
         call.docs = [doc.name]
         return doc, call
 
-    doc = erp.insert("Material Request", payload,
-                     verify={"material_request_type": "Purchase", "supplier": supplier})
+    doc, how = insert_exactly_once(
+        erp, "Material Request", payload, key=idempotency_key(ctx, "mr"),
+        verify={"material_request_type": "Purchase", "supplier": supplier})
     if len(doc.items) != len(items):
         raise ERPError(f"Material Request {doc.name} stored {len(doc.items)} lines, "
                        f"{len(items)} were sent")
-    call.result = f"created {doc.name}"
+    call.result = f"{how} {doc.name}"
     call.docs = [doc.name]
     return doc, call
 
@@ -199,8 +295,8 @@ def submit_doc(erp: Any, ctx: RunContext, doctype: str, name: str) -> tuple[Doc,
     if ctx.dry_run:
         call.result = "skipped (dry run)"
         return Doc(doctype, name, {"name": name, "docstatus": 1}), call
-    doc = erp.submit(doctype, name)
-    call.result = f"submitted {name}"
+    doc, how = submit_exactly_once(erp, doctype, name)
+    call.result = f"{how} {name}"
     call.docs = [name]
     return doc, call
 
@@ -281,8 +377,10 @@ def create_purchase_order(erp: Any, ctx: RunContext, *, mr: Doc, supplier: str,
         call.docs = [doc.name]
         return doc, call
 
-    doc = erp.insert("Purchase Order", payload, verify={"supplier": supplier})
-    call.result = f"created {doc.name} ({route})"
+    doc, how = insert_exactly_once(erp, "Purchase Order", payload,
+                                   key=idempotency_key(ctx, "po"),
+                                   verify={"supplier": supplier})
+    call.result = f"{how} {doc.name} ({route})"
     call.docs = [doc.name]
     return doc, call
 
@@ -333,9 +431,10 @@ def create_purchase_receipt(erp: Any, ctx: RunContext, *, po: Doc,
         call.docs = [doc.name]
         return doc, call
 
-    doc = erp.insert("Purchase Receipt", payload,
-                     verify={"supplier": po.get("supplier")})
-    call.result = f"created {doc.name} ({route})"
+    doc, how = insert_exactly_once(erp, "Purchase Receipt", payload,
+                                   key=idempotency_key(ctx, "grn"),
+                                   verify={"supplier": po.get("supplier")})
+    call.result = f"{how} {doc.name} ({route})"
     call.docs = [doc.name]
     return doc, call
 
@@ -390,9 +489,10 @@ def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
         call.docs = [doc.name]
         return doc, call
 
-    doc = erp.insert("Purchase Invoice", payload,
-                     verify={"supplier": po.get("supplier"), "bill_no": bill_no})
-    call.result = f"created {doc.name} ({route})"
+    doc, how = insert_exactly_once(erp, "Purchase Invoice", payload,
+                                   key=idempotency_key(ctx, "pinv"),
+                                   verify={"supplier": po.get("supplier"), "bill_no": bill_no})
+    call.result = f"{how} {doc.name} ({route})"
     call.docs = [doc.name]
     return doc, call
 

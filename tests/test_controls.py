@@ -192,3 +192,89 @@ def test_an_invoice_line_nobody_ordered_is_held():
 def test_with_no_receipt_r9_holds_and_r11_does_not_double_count():
     res = three_way_match(_d("PO", [("A", 10, 100)]), None, _d("INV", [("A", 10, 100)]))
     assert res.types == {"missing_receipt"}
+
+
+# ---------------------------------------------------------------------------
+# Exactly-once writes: a lost response never becomes a second document
+# ---------------------------------------------------------------------------
+
+
+def _count(erp, doctype):
+    return len(erp.docs.get(doctype, {}))
+
+
+def test_a_timeout_after_the_server_committed_does_not_create_a_second_order(agent, erp):
+    """The gateway lost the response; the order exists. Adopt it, do not re-send."""
+    erp.fail_next(ERPError("504 Gateway Timeout", status=504), doctype="Purchase Order",
+                  op="insert", after_commit=True)
+    s, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.COMPLETED, s.reason
+    assert _count(erp, "Purchase Order") == 1
+    po_step = next(x for x in tr.steps if x.node == "create_purchase_order")
+    assert "adopted after an ambiguous failure" in po_step.tool_calls[0]["result"]
+
+
+def test_a_timeout_before_commit_is_retried_and_still_creates_exactly_one(agent, erp):
+    erp.fail_next(ERPError("503 Service Unavailable", status=503), doctype="Purchase Order",
+                  op="insert")
+    s, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.COMPLETED
+    assert _count(erp, "Purchase Order") == 1
+    po_step = next(x for x in tr.steps if x.node == "create_purchase_order")
+    assert "created on attempt 2" in po_step.tool_calls[0]["result"]
+
+
+def test_a_lost_submit_response_is_settled_by_reading_docstatus(agent, erp):
+    erp.fail_next(ERPError("504 Gateway Timeout", status=504), doctype="Purchase Order",
+                  op="submit", after_commit=True)
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.COMPLETED, s.reason
+    assert s.po.docstatus == 1
+
+
+def test_a_persistent_outage_stops_with_a_reason_and_no_order(agent, erp):
+    erp.fail_next(ERPError("503 Service Unavailable", status=503), doctype="Purchase Order",
+                  op="insert", times=5)
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN
+    assert _count(erp, "Purchase Order") == 0
+
+
+def test_a_validation_error_is_never_retried_by_the_reconciler(agent, erp):
+    erp.fail_next(ERPError("Schedule Date cannot be before Transaction Date", status=417),
+                  doctype="Purchase Order", op="insert", times=5)
+    agent.run(sample("req-happy.txt"), today=TODAY)
+    assert sum(1 for k, d, _ in erp.calls if k == "insert" and d == "Purchase Order") == 1
+
+
+def test_the_database_refuses_a_second_document_with_the_same_key(erp):
+    from procureflow.erp.client import IDEMPOTENCY_FIELD
+    body = {"material_request_type": "Purchase", "schedule_date": "2026-12-01",
+            "items": [{"item_code": "FAS-M8-HEX", "qty": 1, "rate": 12}],
+            IDEMPOTENCY_FIELD: "pf-x-mr"}
+    erp.insert("Material Request", body)
+    with pytest.raises(ERPError) as e:
+        erp.insert("Material Request", body)
+    assert e.value.status == 409
+
+
+def test_the_rest_client_never_resends_a_create_on_its_own():
+    """The transport retries reads. A create gets exactly one POST."""
+    import httpx
+
+    class T:
+        def __init__(self):
+            self.posts = 0
+
+        def handle_request(self, request):                       # noqa: ANN001
+            if request.method == "POST":
+                self.posts += 1
+                return httpx.Response(504, json={}, request=request)
+            return httpx.Response(200, json={"data": []}, request=request)
+
+    t = T()
+    c = ERPNextClient("http://erp.invalid", "k", "s", max_retries=3)
+    c._client = httpx.Client(base_url="http://erp.invalid", transport=t)
+    with pytest.raises(ERPError):
+        c.insert("Material Request", {"items": []})
+    assert t.posts == 1

@@ -1,0 +1,18 @@
+name: timeout_after_commit_exactly_once
+input: seed/samples/req-happy.txt
+category: resilience
+why: >
+  The server stores the Purchase Order and the gateway loses the response
+  (504). A client that retries blind books the order twice. The agent looks
+  the order up by its idempotency key before re-sending, finds it, verifies
+  it and carries on: one order, not two.
+inject_fault:
+  doctype: Purchase Order
+  op: insert
+  status: 504
+  message: "Gateway Timeout"
+  after_commit: true
+expect:
+  state: completed
+  doc_counts: {Purchase Order: 1}
+  documents: [material_request, purchase_order, purchase_receipt, purchase_invoice]

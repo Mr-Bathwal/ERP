@@ -149,6 +149,11 @@ def _check(sc: dict[str, Any], s: State, erp: Any, writes: int) -> list[str]:
         if frag.lower() not in (s.reason or "").lower():
             bad.append(f"reason did not mention {frag!r}: {s.reason[:120]!r}")
 
+    for doctype, n in (exp.get("doc_counts") or {}).items():
+        got = len(getattr(erp, "docs", {}).get(doctype, {}))
+        if got != n:
+            bad.append(f"{doctype}: expected exactly {n} document(s), found {got}")
+
     for doc in exp.get("documents") or []:
         attr = {"material_request": s.mr, "purchase_order": s.po,
                 "purchase_receipt": s.receipt, "purchase_invoice": s.invoice}.get(doc)
@@ -158,6 +163,9 @@ def _check(sc: dict[str, Any], s: State, erp: Any, writes: int) -> list[str]:
 
 
 def _category(sc: dict[str, Any]) -> str:
+    """A scenario may name its category; otherwise it is inferred from the name."""
+    if sc.get("category"):
+        return str(sc["category"])
     n = sc.get("name", "")
     if "duplicate" in n:
         return "duplicate detection"
@@ -191,7 +199,8 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
         err = ERPError(f.get("message", "injected"), status=f.get("status", 500),
                        doctype=f.get("doctype"))
         erp.fail_next(err, doctype=f.get("doctype"), op=f.get("op"),
-                      times=int(f.get("times", 1)))
+                      times=int(f.get("times", 1)),
+                      after_commit=bool(f.get("after_commit", False)))
 
     if sc.get("inject_verification_drift") and not live:
         # Make the stored document disagree with the payload in exactly the

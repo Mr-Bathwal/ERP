@@ -1,5 +1,6 @@
 name: unordered_invoice_line
 input: seed/samples/req-happy.txt
+category: quantity / receipt
 why: >
   The supplier adds a line nobody ordered (nitrile gloves) to an otherwise
   clean invoice. v2 walked the order's items, never the invoice's, so the

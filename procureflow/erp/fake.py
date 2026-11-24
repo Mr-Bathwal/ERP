@@ -34,6 +34,7 @@ from typing import Any
 from .client import (
     ALLOWED_READ,
     ALLOWED_WRITE,
+    IDEMPOTENCY_FIELD,
     Doc,
     ERPError,
     VerificationError,
@@ -64,6 +65,7 @@ class _Fault:
     op: str | None
     error: Exception
     remaining: int
+    after_commit: bool = False
 
 
 @dataclass
@@ -84,18 +86,24 @@ class FakeERPClient:
         return Doc(doctype, name, self.docs[doctype][name])
 
     def fail_next(self, error: Exception, *, doctype: str | None = None,
-                  op: str | None = None, times: int = 1) -> None:
+                  op: str | None = None, times: int = 1,
+                  after_commit: bool = False) -> None:
         """Arm a fault so the next matching operation raises.
 
         Without this, testing the retry-and-escalate paths means either
         monkeypatching httpx or accepting that they are untested. They are
         the paths that run on the worst day, so they get real tests.
-        """
-        self._faults.append(_Fault(doctype, op, error, times))
 
-    def _maybe_fail(self, doctype: str, op: str) -> None:
+        `after_commit=True` is the nasty one: the write is stored and *then*
+        the call fails, the way a gateway timeout loses the response to a
+        request the server finished. A client that retries blind creates a
+        second document; one that reconciles by key does not.
+        """
+        self._faults.append(_Fault(doctype, op, error, times, after_commit))
+
+    def _maybe_fail(self, doctype: str, op: str, *, after_commit: bool = False) -> None:
         for f in self._faults:
-            if f.remaining <= 0:
+            if f.remaining <= 0 or f.after_commit != after_commit:
                 continue
             if (f.doctype in (None, doctype)) and (f.op in (None, op)):
                 f.remaining -= 1
@@ -221,10 +229,20 @@ class FakeERPClient:
                 raise ERPError(f"Could not find Item: {code}",
                                status=417, doctype=doctype, payload=payload)
 
+        # The custom field is unique in the database, so a second document
+        # with the same key is refused the way MariaDB refuses it: a 409
+        # DuplicateEntryError, not a silent second row.
+        key = payload.get(IDEMPOTENCY_FIELD)
+        if key and any(r.get(IDEMPOTENCY_FIELD) == key
+                       for r in self.docs.get(doctype, {}).values()):
+            raise ERPError(f"Duplicate entry {key!r} for key '{IDEMPOTENCY_FIELD}'",
+                           status=409, doctype=doctype, payload=payload)
+
         name = self._next_name(doctype)
         row = self._derive(doctype, payload)
         row["name"] = name
         self.docs.setdefault(doctype, {})[name] = row
+        self._maybe_fail(doctype, "insert", after_commit=True)
 
         stored = self.get_doc(doctype, name)
         if verify:
@@ -247,6 +265,7 @@ class FakeERPClient:
                            status=417, doctype=doctype)
         row["docstatus"] = 1
         row["status"] = "To Receive and Bill"
+        self._maybe_fail(doctype, "submit", after_commit=True)
         stored = self.get_doc(doctype, name)
         if stored.docstatus != 1:                              # pragma: no cover
             raise VerificationError(f"{doctype} {name} did not submit", doctype=doctype)

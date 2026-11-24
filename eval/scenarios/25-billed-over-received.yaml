@@ -1,5 +1,6 @@
 name: billed_over_received
 input: seed/samples/req-short-delivery.txt
+category: quantity / receipt
 why: >
   All 60 rods arrived, so delivery is clean, but the invoice bills 70. Price
   matches the order and the receipt matches the order: only the third leg,
