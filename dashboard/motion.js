@@ -411,6 +411,43 @@
     sec.classList.add('is-act');
   }
 
+  /* ---- the opening curtain ---------------------------------------
+     Built in script and removed on a timer that does not depend on
+     anything loading, so the worst case is a blank half second, never
+     a page the visitor cannot get past. */
+  function wireCurtain() {
+    if (reduced || !hasGsap) return;
+    const c = document.createElement('div');
+    c.className = 'curtain';
+    c.setAttribute('aria-hidden', 'true');
+    c.innerHTML = '<p>ProcureFlow · evaluation record</p>';
+    document.body.appendChild(c);
+    const lift = () => gsap.to(c, {
+      autoAlpha: 0, duration: 0.7, ease: 'power2.inOut', delay: 0.12,
+      onComplete: () => c.remove(),
+    });
+    if (document.readyState === 'complete') lift();
+    else window.addEventListener('load', lift);
+    setTimeout(() => { if (c.isConnected) lift(); }, 2200);   // never stuck
+  }
+
+  /* ---- section rules draw as you approach them -------------------- */
+  function wireRules(root) {
+    if (reduced || !hasGsap) return;
+    $$('.sec-head', root).forEach((h) => {
+      if (h.dataset.drawn) return;
+      h.dataset.drawn = '1';
+      const line = document.createElement('i');
+      line.className = 'draw';
+      line.setAttribute('aria-hidden', 'true');
+      h.insertBefore(line, h.firstChild);
+      gsap.to(line, {
+        scrollTrigger: { trigger: h, start: 'top 92%', end: 'top 55%', scrub: 0.7 },
+        scaleX: 1, ease: 'none',
+      });
+    });
+  }
+
   /* ---- the progress hairline -------------------------------------- */
   function wireProgress() {
     const bar = document.createElement('div');
@@ -474,6 +511,7 @@
     wireTimeline(r);
     wireCards(r);
     fillTicker();
+    wireRules(r);
     wireApprovalAct();
     if (hasGsap) ST.refresh();
     // A refresh moves everything; anything already at the fold has to
@@ -483,6 +521,7 @@
   }
 
   function boot() {
+    wireCurtain();
     splitHeadline($('#hero-title'));
     wireThread();
     wireProgress();

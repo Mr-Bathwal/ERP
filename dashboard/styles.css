@@ -1249,6 +1249,37 @@ footer {
 .notice code { background: var(--ink-1); padding: 2px 6px; border-radius: 4px; color: var(--cyan); }
 .loading { color: var(--faint); font-size: 14.5px; padding: 14px 0; font-family: var(--mono); }
 
+/* ---- the opening curtain ----------------------------------------
+   Created by script, so a visitor without JavaScript never meets a
+   black sheet with nothing behind it. */
+.curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--void);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.curtain p {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ---- the rule above a section head, drawn on approach ----------- */
+.sec-head { position: relative; }
+.sec-head > i.draw {
+  position: absolute;
+  left: 0; right: 0; top: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--jade), var(--cyan) 40%, transparent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
 /* ---- the pointer ring (desktop, fine pointers only) -------------- */
 .ring {
   position: fixed;
