@@ -2,7 +2,7 @@
 
 **An AI agent that runs procure-to-pay inside ERPNext, and treats every one of its own actions, every document it reads and every approval it receives as something to verify, not trust.**
 
-[![CI](https://github.com/Mr-Bathwal/ERP/actions/workflows/ci.yml/badge.svg)](https://github.com/Mr-Bathwal/ERP/actions/workflows/ci.yml)
+[![CI](https://github.com/Mr-Bathwal/procureflow/actions/workflows/ci.yml/badge.svg)](https://github.com/Mr-Bathwal/procureflow/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-1f2328)
 ![Tests](https://img.shields.io/badge/tests-239%20offline-1a7f37)
 ![Eval](https://img.shields.io/badge/eval-48%20scenarios%20·%20fake%20ERP-1a7f37)

@@ -9,7 +9,7 @@ reproduction in the message. `git log e567695..HEAD` is the v3 story.
 | | |
 |---|---|
 | **Working directory** | `C:\Users\goura\Downloads\procureflow` |
-| **Repository** | https://github.com/Mr-Bathwal/ERP (public, `main`, pushed up to `3b73176`) |
+| **Repository** | https://github.com/Mr-Bathwal/procureflow (public, `main`, pushed up to `3b73176`) |
 | **Original brief** | `C:\Users\goura\Downloads\PROMPT_ERP_P2P_AGENT.md`, the source of truth for scope, the cut order and the CV deliverable |
 | **CV deliverable** (written, outside the repo on purpose) | `C:\Users\goura\Downloads\ProcureFlow_CV_and_Pitch.md` |
 | **Research notes** (outside the repo) | `C:\Users\goura\Downloads\procureflow-research\` (see section 8) |
@@ -239,7 +239,7 @@ mapper paths, `net_total` versus `total`, rounding, and whether
    `must-revalidate` on html/css/js/json because none of those filenames are
    content-hashed and a cached `results-v3.json` would show last week's
    numbers. All that is left is the one-time import at
-   vercel.com/new (Add New > Project > import `Mr-Bathwal/ERP` > Deploy),
+   vercel.com/new (Add New > Project > import `Mr-Bathwal/procureflow` > Deploy),
    which is Gourav's own account and so his click; every later push to `main`
    then deploys itself. GitHub Pages from `/dashboard` still works as a
    fallback and is a repo setting. After either, the CV header may say "Live".
