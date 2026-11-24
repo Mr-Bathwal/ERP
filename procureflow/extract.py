@@ -219,6 +219,15 @@ def _parse_date(text: str) -> str | None:
     return None
 
 
+def dates_in(text: str) -> set[str]:
+    """Every date written anywhere in `text`, as ISO strings (R13 grounding)."""
+    out = {m.group(0) for m in _DATE_ISO.finditer(text)}
+    for m in _DATE_DMY.finditer(text):
+        if (iso := _parse_date(m.group(0))):
+            out.add(iso)
+    return out
+
+
 def _num(cell: str) -> float | None:
     cell = cell.strip().replace(",", "")
     if not cell:

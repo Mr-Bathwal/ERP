@@ -1,0 +1,6 @@
+# PDFs from reportlab contain no NUL byte, so git guessed "text" and core.autocrlf
+# rewrote their line endings on Windows checkouts -- corrupting every xref offset.
+*.pdf    binary
+*.xlsx   binary
+*.png    binary
+*.sqlite binary

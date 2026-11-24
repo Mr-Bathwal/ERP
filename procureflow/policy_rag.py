@@ -35,7 +35,7 @@ POLICY_PATH = Path(__file__).resolve().parent.parent / "policy" / "procurement_p
 
 # Controls that apply whether or not the vector store surfaces them. See the
 # module docstring: retrieval must not be able to switch off an authority rule.
-ALWAYS_APPLICABLE = ("R5", "R6", "R8", "R10")
+ALWAYS_APPLICABLE = ("R5", "R6", "R8", "R10", "R12", "R13")
 
 
 @dataclass
@@ -185,6 +185,7 @@ class PolicyNumbers:
     run_ceiling_paise: int = 5_00_000 * 100
     preferred: tuple[str, ...] = field(default_factory=tuple)
     approvers: tuple[Approver, ...] = field(default_factory=tuple)
+    hidden_font_pt: float = 2.0
     source: str = "policy/procurement_policy.md"
 
 
@@ -238,6 +239,10 @@ def read_numbers(rules: list[Rule] | None = None) -> PolicyNumbers:
 
     if (r12 := by_id.get("R12")):
         n.approvers = parse_authority(r12.text)
+
+    if (r13 := by_id.get("R13")):
+        if (m := re.search(r"\*\*(\d+(?:\.\d+)?)\s*pt\*\*", r13.text)):
+            n.hidden_font_pt = float(m.group(1))
 
     return n
 

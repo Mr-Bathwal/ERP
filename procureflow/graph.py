@@ -35,10 +35,10 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from . import approval
+from . import approval, screen
 from .config import PurchaseRequest, RunContext, RunState
 from .erp.client import Doc, ERPError, VerificationError
-from .extract import Catalogue, extract, resolve_items
+from .extract import Catalogue, dates_in, extract, read_source, resolve_items
 from .match import (
     MatchResult,
     Tolerances,
@@ -158,8 +158,31 @@ class Agent:
     # -- nodes ------------------------------------------------------------
 
     def n_extract(self, s: State, tr: Tracer) -> State:
-        """Document in, `PurchaseRequest` out, or `needs_human` with a reason."""
+        """Document in, `PurchaseRequest` out, or `needs_human` with a reason.
+
+        R13 brackets the model: the document is screened before anything
+        reads it, and every value read is checked against the page after.
+        """
         with tr.step("extract") as st:
+            text, _kind = read_source(s.source)
+            findings = screen.screen(s.source, text,
+                                     min_font_pt=self.numbers.hidden_font_pt)
+            st.tool_calls.append({"kind": "screen", "name": "screen_document",
+                                  "result": "; ".join(map(str, findings)) or "clean"})
+            if findings:
+                payment = any(f.kind == "payment_change" for f in findings)
+                s.state = RunState.ESCALATED if payment else RunState.NEEDS_HUMAN
+                s.reason = ("R13: " + ("the document asks to change payment details; route "
+                                       "to the supplier-master owner for call-back "
+                                       "verification" if payment else
+                                       "the document was quarantined before any model read it")
+                            + f" ({findings[0]})")
+                s.cite("R13", "escalated" if payment else "quarantined",
+                       "; ".join(map(str, findings[:3])))
+                st.outcome = s.state.value
+                st.detail, st.rules_cited = s.reason, ["R13"]
+                return s
+
             res = extract(s.source, model=self.model)
             s.extract_method = res.method
             tr.extract_method = res.method
@@ -174,6 +197,13 @@ class Agent:
                 return s
 
             s.request = res.request
+            if (ungrounded := screen.ground(s.request, text, dates_in_text=dates_in(text))):
+                s.state = RunState.NEEDS_HUMAN
+                s.reason = ("R13: extraction returned values that are not in the document: "
+                            + "; ".join(ungrounded[:4]))
+                s.cite("R13", "stopped", "ungrounded: " + "; ".join(ungrounded[:4]))
+                st.outcome, st.detail, st.rules_cited = "needs_human", s.reason, ["R13"]
+                return s
             if s.plan.force_supplier:
                 s.request.supplier = s.plan.force_supplier
 

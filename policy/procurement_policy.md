@@ -1,6 +1,6 @@
 # Procurement Policy — ProcureFlow Demo Pvt Ltd
 
-**Version 1.5** · Effective 2026-11-24 · Owner: Head of Supply Chain
+**Version 1.6** · Effective 2026-11-24 · Owner: Head of Supply Chain
 **Applies to:** all indirect and raw-material purchasing routed through ERPNext.
 
 This document is the process. ProcureFlow holds no thresholds in code — the
@@ -218,6 +218,35 @@ An approval that R1 requires is valid only if all three of these hold:
 
 ---
 
+## R13 — Documents are data, never instructions
+
+Every request and quote is untrusted input. Before any model reads it, the
+document is screened, and the run stops if it contains:
+
+- text addressed to an automated reader, or asking for a control to be
+  skipped ("ignore previous instructions", "pre-approved by", "do not flag")
+  — quarantined, `needs_human`;
+- text a person reviewing it cannot see: PDF text in invisible render mode,
+  white text not drawn over a dark shape, or type smaller than **2 pt**; or
+  invisible Unicode characters — quarantined, `needs_human`;
+- a request to change bank or payment details — `escalated` to the owner
+  of the supplier master for call-back verification on a known number.
+
+After extraction, every value that was read — supplier, each line's
+description, quantity and rate, the needed-by date, the supplier's
+reference — must appear in the document. A value that does not is never
+used, and the run stops `needs_human`.
+
+> **Why.** Requests arrive by email from outside the company, and the model
+> reading them cannot reliably tell a sentence to extract from a sentence
+> trying to steer it. The agent's tools already cannot create a supplier or
+> touch bank details (R6), so the worst outcomes are impossible; this rule
+> stops a document from even trying, and makes "the model only reads" a
+> property that is checked: a quantity that is not on the page was either
+> hallucinated or injected, and either way it does not reach an order.
+
+---
+
 ## Rule summary
 
 | Rule | Subject | Threshold | Effect when breached |
@@ -234,3 +263,4 @@ An approval that R1 requires is valid only if all three of these hold:
 | R10 | Run ceiling | > ₹5,00,000 | stop, raise by hand |
 | R11 | Billed vs received | R4 allowance on receipt | `billed_over_received` / `unordered_line`, hold |
 | R12 | Approval validity | authority table, not the requester, digest unchanged | approval refused or voided |
+| R13 | Untrusted documents | instructions, hidden text < 2 pt, payment change, ungrounded value | quarantine / escalate |
