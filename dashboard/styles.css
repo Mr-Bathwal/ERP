@@ -25,8 +25,10 @@
    Each is still paired with a glyph and a word, so the page survives
    greyscale and colour blindness.
 
-   Contrast on --void: text 16.4:1 · muted 7.2:1 · jade 10.1:1
-   amber 10.8:1 · red 6.1:1
+   Contrast on --void, measured rather than estimated:
+   text 17.4:1 · muted 7.0:1 · faint 4.8:1 · jade 11.2:1
+   amber 10.6:1 · red 5.8:1. The light theme is held to the same
+   floor: text 16.3:1 · muted 6.7:1 · faint 4.8:1.
    =================================================================== */
 
 /* ---- tokens ------------------------------------------------------ */
