@@ -221,7 +221,7 @@ body > header, body > main, body > footer { position: relative; z-index: 2; }
 
 .thread {
   position: fixed;
-  left: max(16px, calc((100vw - var(--max)) / 2 + 12px));
+  left: max(14px, calc((100vw - var(--max)) / 2 - 122px));
   top: 50%; transform: translateY(-50%);
   z-index: 30; display: grid; gap: 15px;
   opacity: 0; transition: opacity 0.6s var(--ease); pointer-events: none;
@@ -241,6 +241,15 @@ body > header, body > main, body > footer { position: relative; z-index: 2; }
 .thread a:hover, .thread a[aria-current='true'] { color: var(--text); }
 .thread a:hover i, .thread a[aria-current='true'] i { width: 26px; background: var(--text); }
 .thread a:hover span, .thread a[aria-current='true'] span { opacity: 1; transform: none; }
+/* The word only appears where the gutter can hold it. The longest label
+   measures 110px; below 1600px the gutter cannot take it, so the dash is
+   left to mark the place on its own. Before this the rail sat 12px *inside*
+   the text column and the label printed 122px over the paragraph, at every
+   width from 1536 to 2560. */
+@media (max-width: 1599px) {
+  .thread a { grid-template-columns: 26px; }
+  .thread a span { display: none; }
+}
 @media (max-width: 1500px) { .thread { display: none; } }
 
 /* ---- type -------------------------------------------------------- */
