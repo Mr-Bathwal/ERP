@@ -17,7 +17,7 @@ out/
 
 # Run artefacts. results.json / results.md / exceptions.xlsx ARE committed,
 # because the README cites their numbers and a reader must be able to check.
-eval/results/traces.sqlite
+eval/results/*.sqlite
 eval/results/paused/
 
 # Local agent/editor config

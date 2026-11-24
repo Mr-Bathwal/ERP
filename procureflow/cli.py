@@ -146,6 +146,18 @@ def cmd_report(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_trace(a: argparse.Namespace) -> int:
+    """Recompute a run's hash chain; with --against, check it against results.json."""
+    from .tracing import verify_trace
+    head = ""
+    if a.against:
+        runs = json.loads(Path(a.against).read_text(encoding="utf-8")).get("runs", [])
+        head = next((r.get("trace_head", "") for r in runs if r.get("run_id") == a.run_id), "")
+    ok, detail = verify_trace(a.db or settings.trace_db, a.run_id, expect_head=head)
+    print(f"  {'intact' if ok else 'BROKEN'}: {detail}")
+    return 0 if ok else 1
+
+
 def cmd_permissions(_: argparse.Namespace) -> int:
     print(json.dumps(describe_permissions(), indent=2))
     return 0
@@ -185,6 +197,12 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("report", help="print the last evaluation").set_defaults(fn=cmd_report)
     sub.add_parser("permissions", help="what the agent may do").set_defaults(fn=cmd_permissions)
+
+    v = sub.add_parser("verify-trace", help="recompute a run's tamper-evident hash chain")
+    v.add_argument("run_id")
+    v.add_argument("--db", default="", help="trace file (default: the configured one)")
+    v.add_argument("--against", default="", help="results.json holding the anchored heads")
+    v.set_defaults(fn=cmd_verify_trace)
 
     args = ap.parse_args(argv)
     return args.fn(args)

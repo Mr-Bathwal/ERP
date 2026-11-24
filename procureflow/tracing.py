@@ -23,6 +23,7 @@ secrets around.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -74,6 +75,28 @@ CREATE TABLE IF NOT EXISTS steps (
 );
 CREATE INDEX IF NOT EXISTS steps_run ON steps(run_id, seq);
 """
+
+# Columns added after v2. Older trace files get them on first open.
+_MIGRATIONS = (
+    "ALTER TABLE runs ADD COLUMN policy_version TEXT",
+    "ALTER TABLE runs ADD COLUMN policy_sha256 TEXT",
+    "ALTER TABLE runs ADD COLUMN chain_head TEXT",
+    "ALTER TABLE steps ADD COLUMN prev_hash TEXT",
+    "ALTER TABLE steps ADD COLUMN hash TEXT",
+)
+
+_STEP_COLS = ("run_id", "seq", "node", "started_at", "ms", "outcome", "detail", "tool_calls",
+              "erp_docs", "rules_cited", "tokens_in", "tokens_out", "error")
+
+
+def _genesis(run_id: str, policy_sha256: str) -> str:
+    return hashlib.sha256(f"procureflow|{run_id}|{policy_sha256}".encode()).hexdigest()
+
+
+def _link(prev: str, row: tuple) -> str:
+    """One link of the chain: the previous hash and this row, canonically."""
+    body = json.dumps([prev, *row], separators=(",", ":"), ensure_ascii=True, default=str)
+    return hashlib.sha256(body.encode()).hexdigest()
 
 # Anything matching these is masked before it reaches disk.
 _SECRET_KEYS = re.compile(
@@ -158,6 +181,7 @@ class Tracer:
         self.llm_calls = 0
         self.policy_version = ""
         self.policy_sha256 = ""
+        self.chain_head = ""
 
     @contextmanager
     def step(self, node: str) -> Iterator[Step]:
@@ -202,31 +226,41 @@ class Tracer:
 
     def _connect(self) -> sqlite3.Connection:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)   # type: ignore[union-attr]
-        conn = sqlite3.connect(str(self.db_path))
-        conn.executescript(SCHEMA)
-        return conn
+        return connect(self.db_path)
 
     def write(self) -> None:
         conn = self._connect()
         try:
+            rows = [(self.run_id, s.seq, s.node, s.started_at, s.ms, s.outcome, s.detail,
+                     json.dumps(redact(s.tool_calls)), json.dumps(s.erp_docs),
+                     json.dumps(s.rules_cited), s.tokens_in, s.tokens_out, s.error)
+                    for s in self.steps]
+            # Each step is chained to the one before it, starting from the
+            # run id and the policy hash. A resumed run re-writes its earlier
+            # steps; (run_id, seq) is unique, so they are replaced, not
+            # duplicated -- v2 wrote 18 rows for a 12-step resumed run.
+            prev = _genesis(self.run_id, self.policy_sha256)
+            chained = []
+            for row in rows:
+                h = _link(prev, row)
+                chained.append((*row, prev, h))
+                prev = h
+            self.chain_head = prev
             conn.execute(
                 "INSERT OR REPLACE INTO runs (run_id, started_at, ended_at, source_file,"
                 " scenario, state, reason, dry_run, receipt_mode, extract_method, po_name,"
                 " receipt_name, invoice_name, exceptions, rules_cited, total_ms, llm_calls,"
-                " tokens_in, tokens_out) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                " tokens_in, tokens_out, policy_version, policy_sha256, chain_head)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (self.run_id, self.started_at, time.time(), self.source_file, self.scenario,
                  self.state, self.reason, int(self.dry_run), self.receipt_mode,
                  self.extract_method, self.po_name, self.receipt_name, self.invoice_name,
                  json.dumps(self.exceptions), json.dumps(self.rules_cited),
-                 self.total_ms, self.llm_calls, self.tokens_in, self.tokens_out))
+                 self.total_ms, self.llm_calls, self.tokens_in, self.tokens_out,
+                 self.policy_version, self.policy_sha256, self.chain_head))
             conn.executemany(
-                "INSERT INTO steps (run_id, seq, node, started_at, ms, outcome, detail,"
-                " tool_calls, erp_docs, rules_cited, tokens_in, tokens_out, error)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                [(self.run_id, s.seq, s.node, s.started_at, s.ms, s.outcome, s.detail,
-                  json.dumps(redact(s.tool_calls)), json.dumps(s.erp_docs),
-                  json.dumps(s.rules_cited), s.tokens_in, s.tokens_out, s.error)
-                 for s in self.steps])
+                "INSERT OR REPLACE INTO steps (" + ", ".join(_STEP_COLS) + ", prev_hash, hash)"
+                " VALUES (" + ",".join("?" * (len(_STEP_COLS) + 2)) + ")", chained)
             conn.commit()
         finally:
             conn.close()
@@ -253,6 +287,58 @@ class Tracer:
             "tokens_out": self.tokens_out,
             "steps": [asdict(s) for s in self.steps],
         })
+
+
+def connect(db_path: str | Path) -> sqlite3.Connection:
+    """Open a trace file, bringing an older one up to the current schema."""
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(SCHEMA)
+    for stmt in _MIGRATIONS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError:
+            pass                                   # column already there
+    try:
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS steps_unique ON steps(run_id, seq)")
+    except sqlite3.IntegrityError:
+        # A v2 file with duplicated resume rows: keep the latest of each.
+        conn.execute("DELETE FROM steps WHERE id NOT IN "
+                     "(SELECT MAX(id) FROM steps GROUP BY run_id, seq)")
+        conn.execute("CREATE UNIQUE INDEX steps_unique ON steps(run_id, seq)")
+    conn.commit()
+    return conn
+
+
+def verify_trace(db_path: str | Path, run_id: str, *, expect_head: str = "") -> tuple[bool, str]:
+    """Recompute a run's hash chain from what is stored and say where it breaks.
+
+    The chain makes an edited, deleted or reordered step detectable -- but
+    only against a head stored somewhere the editor cannot also rewrite. The
+    eval writes every run's head into results.json, which is committed, so
+    `expect_head` is that external anchor.
+    """
+    conn = connect(db_path)
+    try:
+        run = conn.execute("SELECT policy_sha256, chain_head FROM runs WHERE run_id=?",
+                           (run_id,)).fetchone()
+        if run is None:
+            return False, f"no run {run_id}"
+        rows = conn.execute("SELECT " + ", ".join(_STEP_COLS) + ", prev_hash, hash FROM steps "
+                            "WHERE run_id=? ORDER BY seq", (run_id,)).fetchall()
+    finally:
+        conn.close()
+    prev = _genesis(run_id, run[0] or "")
+    for r in rows:
+        body, stored_prev, stored = r[:len(_STEP_COLS)], r[-2], r[-1]
+        h = _link(prev, tuple(body))
+        if stored_prev != prev or stored != h:
+            return False, f"step {body[1]} ({body[2]}) does not match its hash"
+        prev = h
+    if run[1] != prev:
+        return False, "the run's chain head does not match its steps"
+    if expect_head and expect_head != prev:
+        return False, "the chain is internally consistent but differs from the anchored head"
+    return True, prev
 
 
 def export_json(db_path: str | Path, out_path: str | Path) -> int:

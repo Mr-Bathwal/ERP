@@ -777,3 +777,56 @@ def test_an_invented_requester_is_ungrounded():
     bad = scr.ground(req, "Bharat Fasteners Pvt Ltd: 500 nos Hex bolt M8x40 @ 12.00\nR. Iyer",
                      dates_in_text=set())
     assert any("requester" in b for b in bad)
+
+
+# ---------------------------------------------------------------------------
+# The trace: one row per step, a hash chain, an external anchor
+# ---------------------------------------------------------------------------
+
+
+def _traced(erp, policy, tmp_path):
+    return Agent(erp, policy=policy, trace_db=tmp_path / "t.sqlite"), tmp_path / "t.sqlite"
+
+
+def test_a_resumed_run_has_exactly_one_row_per_step(erp, policy, tmp_path):
+    import sqlite3
+    agent, db = _traced(erp, policy, tmp_path)
+    s, tr = agent.run(sample("req-over-threshold.txt"), submitted_by="k.rao", today=TODAY)
+    agent.resume(s, tr, approved=True, approver="proc.manager")
+    con = sqlite3.connect(db)
+    rows = con.execute("SELECT seq, COUNT(*) FROM steps WHERE run_id=? GROUP BY seq",
+                       (tr.run_id,)).fetchall()
+    assert rows and all(n == 1 for _, n in rows)
+    assert len(rows) == len(tr.steps)
+
+
+def test_editing_one_stored_step_breaks_the_chain_at_that_step(erp, policy, tmp_path):
+    import sqlite3
+
+    from procureflow.tracing import verify_trace
+    agent, db = _traced(erp, policy, tmp_path)
+    _, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert verify_trace(db, tr.run_id) == (True, tr.chain_head)
+    con = sqlite3.connect(db)
+    con.execute("UPDATE steps SET detail='approved by finance' WHERE run_id=? AND seq=6",
+                (tr.run_id,))
+    con.commit()
+    ok, why = verify_trace(db, tr.run_id)
+    assert not ok and why.startswith("step 6")
+
+
+def test_a_rewritten_chain_still_fails_against_the_anchored_head(erp, policy, tmp_path):
+    from procureflow.tracing import verify_trace
+    agent, db = _traced(erp, policy, tmp_path)
+    _, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    ok, why = verify_trace(db, tr.run_id, expect_head="0" * 64)
+    assert not ok and "anchored head" in why
+
+
+def test_every_run_records_the_policy_it_was_decided_under(erp, policy, tmp_path):
+    import sqlite3
+    agent, db = _traced(erp, policy, tmp_path)
+    _, tr = agent.run(sample("req-happy.txt"), today=TODAY)
+    v, h = sqlite3.connect(db).execute(
+        "SELECT policy_version, policy_sha256 FROM runs WHERE run_id=?", (tr.run_id,)).fetchone()
+    assert h == policy.sha256 and len(h) == 64

@@ -48,12 +48,15 @@ from procureflow.config import settings  # noqa: E402
 from procureflow.erp.client import ERPError  # noqa: E402
 from procureflow.erp.fake import demo_company  # noqa: E402
 from procureflow.graph import Agent, RunPlan, State  # noqa: E402
-from procureflow.policy_rag import PolicyIndex, read_numbers  # noqa: E402
+from procureflow.policy_rag import PolicyIndex  # noqa: E402
 from procureflow.report_excel import write_exception_report  # noqa: E402
 from procureflow.tracing import export_json, percentile  # noqa: E402
 
 SCENARIOS = ROOT / "eval" / "scenarios"
 RESULTS = ROOT / "eval" / "results"
+# The eval's own trace file, recreated on every run, so traces.json holds
+# exactly this run's scenarios and nothing a CLI session left behind.
+EVAL_TRACES = RESULTS / "traces-eval.sqlite"
 TODAY = date(2026, 11, 24)        # fixed, so expedite and date rules are stable
 # The identity that submits every scenario document. R12 needs a known
 # requester to show segregation of duties; the harness is that requester,
@@ -83,6 +86,8 @@ class Outcome:
     erp_writes: int = 0
     extract_method: str = ""
     category: str = ""
+    trace_head: str = ""
+    run_id: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
@@ -231,8 +236,7 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
     # Without trace_db the Tracer buffers and never writes, so the
     # harness produced no monitoring evidence at all and the dashboard
     # had nothing to show per scenario.
-    agent = Agent(erp, policy=policy, numbers=read_numbers(policy.rules),
-                  trace_db=settings.trace_db)
+    agent = Agent(erp, policy=policy, trace_db=EVAL_TRACES)
     plan = RunPlan(**(sc.get("plan") or {}))
 
     # R5 needs a prior invoice to collide with, so the scenario runs twice.
@@ -293,12 +297,13 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
         rules_cited=s.rules, documents=docs, steps=len(tr.steps),
         llm_calls=tr.llm_calls, tokens_in=tr.tokens_in, tokens_out=tr.tokens_out,
         ms=wall, erp_writes=writes, extract_method=s.extract_method,
+        trace_head=getattr(tr, "chain_head", ""), run_id=tr.run_id,
         category=_category(sc),
     )
 
 
-def summarise(rows: list[Outcome], *, tag: str, live: bool,
-              backend: str, elapsed: float) -> dict[str, Any]:
+def summarise(rows: list[Outcome], *, tag: str, live: bool, backend: str, elapsed: float,
+              policy_version: str = "", policy_sha256: str = "") -> dict[str, Any]:
     lat = [r.ms for r in rows]
     exc_rows = [r for r in rows if (r.exceptions or "exception" in r.expected_state)]
     detected = sum(1 for r in exc_rows if r.passed)
@@ -310,6 +315,8 @@ def summarise(rows: list[Outcome], *, tag: str, live: bool,
     return {
         "tag": tag,
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "policy_version": policy_version,
+        "policy_sha256": policy_sha256,
         "mode": "live ERPNext" if live else "FakeERPClient",
         "extraction": sorted({r.extract_method for r in rows if r.extract_method}),
         "policy_backend": backend,
@@ -381,6 +388,7 @@ def main() -> int:
         return 2
 
     RESULTS.mkdir(parents=True, exist_ok=True)
+    EVAL_TRACES.unlink(missing_ok=True)
     policy = PolicyIndex()
     scenarios = [s for s in _load() if args.only in s.get("name", "")]
     if not scenarios:
@@ -409,8 +417,9 @@ def main() -> int:
             print(f"         {w}")
 
     elapsed = time.perf_counter() - t0
-    summary = summarise(rows, tag=args.tag, live=args.live,
-                        backend=policy.backend, elapsed=elapsed)
+    summary = summarise(rows, tag=args.tag, live=args.live, backend=policy.backend,
+                        elapsed=elapsed, policy_version=policy.version,
+                        policy_sha256=policy.sha256)
 
     (RESULTS / f"results-{args.tag}.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8")
@@ -419,7 +428,7 @@ def main() -> int:
     write_markdown(summary, RESULTS / "results.md")
 
     n = write_exception_report(rows, RESULTS / "exceptions.xlsx", summary=summary)
-    export_json(settings.trace_db, RESULTS / "traces.json")
+    export_json(EVAL_TRACES, RESULTS / "traces.json")
 
     print(f"\n  success {summary['success_rate']}%  "
           f"({summary['passed']}/{summary['scenarios']})   "
