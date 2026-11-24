@@ -43,7 +43,7 @@ The README's first table is that argument. Do not dilute it.
 
 | | |
 |---|---|
-| Tests | **229 passing**, fully offline (`make test`; Hypothesis is a dev dependency) |
+| Tests | **239 passing**, fully offline (`make test`; Hypothesis is a dev dependency) |
 | Lint | `ruff` clean |
 | Eval | **48 scenarios, 100%** (v3), **0 false-touchless of 33**, 0 trace-invariant violations; v2 23/23, v1 19/24 |
 | CI | lint + tests + eval with `--check-baseline` against `eval/baseline.json` |

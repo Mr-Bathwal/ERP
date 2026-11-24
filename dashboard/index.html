@@ -1,445 +1,1305 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ProcureFlow — evaluation</title>
-<meta name="description" content="Recorded runs from the ProcureFlow evaluation harness: an AI agent that runs procure-to-pay in ERPNext and verifies every write by reading it back.">
+<title>ProcureFlow evaluation record</title>
+<meta name="description" content="A recorded evaluation of ProcureFlow, an agent that runs procure-to-pay in ERPNext and reads back every write. Synthetic documents, run against an in-memory ERPNext double.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Schibsted+Grotesk:wght@400..800&display=swap" rel="stylesheet">
 <style>
+/* ------------------------------------------------------------------
+   Tokens. Named by job, not by colour, so dark mode is a remap.
+   One accent: "stopped by a control". Red only for a failure.
+   Contrast (WCAG): ink 15.6:1, muted 6.1:1, accent 7.9:1, red 5.8:1
+   on the light paper; ink 15.5:1, muted 7.9:1, accent 8.3:1, red 8.2:1
+   on the dark ground. Control borders (--ctrl) are 3.5:1 / 4.1:1.
+   ------------------------------------------------------------------ */
 :root{
-  --bg:#07090c; --bg-1:#0c1016; --bg-2:#11161e; --line:#1d242f; --line-2:#2a3340;
-  --fg:#e8edf4; --fg-1:#9aa7b8; --fg-2:#64718400;
-  --mut:#7d8a9c;
-  --ok:#3fb950; --ok-bg:#0d2818; --warn:#d29922; --warn-bg:#2b2310;
-  --bad:#f85149; --bad-bg:#2d1518; --blue:#58a6ff; --blue-bg:#0d1f33;
-  --violet:#a371f7;
-  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-  --r:10px; --gut:clamp(16px,4vw,40px);
-  --ease:cubic-bezier(.22,.68,0,1);
+  color-scheme: light;
+  --bg:#F4F1EA; --surface:#FBF9F4; --sunk:#ECE8DE;
+  --ink:#17191C; --muted:#545B63; --faint:#5F646A;
+  --rule:#D8D2C4; --ctrl:#857E70;
+  --accent:#3B2FC0; --accent-soft:#E6E3F8; --on-accent:#FFFFFF;
+  --red:#B3261E; --red-soft:#F8E3E0;
+  --sans:'Schibsted Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --gut:clamp(16px, 4vw, 40px);
+  --max:1200px;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#101214; --surface:#171A1D; --sunk:#0B0D0E;
+    --ink:#ECE9E2; --muted:#A3A9B0; --faint:#9399A0;
+    --rule:#2A2E33; --ctrl:#6F7780;
+    --accent:#A8A2FF; --accent-soft:#24224A; --on-accent:#101214;
+    --red:#FF8A7A; --red-soft:#3A1D1A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#101214; --surface:#171A1D; --sunk:#0B0D0E;
+  --ink:#ECE9E2; --muted:#A3A9B0; --faint:#9399A0;
+  --rule:#2A2E33; --ctrl:#6F7780;
+  --accent:#A8A2FF; --accent-soft:#24224A; --on-accent:#101214;
+  --red:#FF8A7A; --red-soft:#3A1D1A;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
-  background:var(--bg);color:var(--fg);font-family:var(--sans);
-  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--sans);font-size:17px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;overflow-wrap:break-word;
 }
-/* The one piece of atmosphere: a slow aurora behind the hero. Cheap,
-   GPU-composited, and it stops dead for prefers-reduced-motion. */
-.aurora{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5}
-.aurora::before,.aurora::after{
-  content:'';position:absolute;width:60vw;height:60vw;border-radius:50%;
-  filter:blur(120px);will-change:transform;
-}
-.aurora::before{background:radial-gradient(circle,#1e4d7b55,transparent 65%);top:-22vw;left:-12vw;animation:drift 28s var(--ease) infinite alternate}
-.aurora::after{background:radial-gradient(circle,#5b2d8255,transparent 65%);top:5vw;right:-18vw;animation:drift 34s var(--ease) infinite alternate-reverse}
-@keyframes drift{to{transform:translate3d(8vw,6vw,0) scale(1.15)}}
+h1,h2,h3,h4,p,ol,ul,dl,dd,figure,blockquote{margin:0}
+ol,ul{padding:0;list-style:none}
+code,kbd,.mono{font-family:var(--mono);font-size:.84em;font-weight:500}
+a{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{text-decoration-thickness:2px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--gut)}
+.skip{position:absolute;left:var(--gut);top:-60px;z-index:100;background:var(--ink);color:var(--bg);padding:8px 12px;font-weight:600}
+.skip:focus{top:8px}
 
-.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 var(--gut)}
+/* ---- masthead: a slim provenance bar, never a "live" signal ---- */
+.mast{position:sticky;top:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--rule)}
+.mast-in{display:flex;align-items:center;gap:20px;height:52px}
+.brand{font-weight:800;letter-spacing:-.02em;font-size:16px;text-decoration:none;white-space:nowrap}
+.brand span{font-weight:500;color:var(--muted);margin-left:6px}
+.nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.nav::-webkit-scrollbar{display:none}
+/* auto margin, not justify-content:flex-end, so an overflowing nav
+   still scrolls back to its first link */
+.nav a:first-child{margin-left:auto}
+.nav a{font-size:14px;color:var(--muted);text-decoration:none;padding:6px 9px;border-radius:3px;white-space:nowrap}
+.nav a:hover{color:var(--ink)}
+.nav a[aria-current="true"]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.theme-btn{flex:none;width:36px;height:36px;border:1px solid var(--ctrl);background:transparent;border-radius:50%;cursor:pointer;display:grid;place-items:center}
+.theme-btn svg{width:18px;height:18px}
 
-/* ---- nav ---- */
-header.nav{
-  position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
-  background:#07090ccc;border-bottom:1px solid var(--line);
-}
-.nav-in{display:flex;align-items:center;gap:22px;height:58px}
-.brand{font-weight:700;letter-spacing:-.02em;font-size:15px;display:flex;align-items:center;gap:9px}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok)}
-.nav a{color:var(--mut);text-decoration:none;font-size:13.5px;font-weight:500;transition:color .18s}
-.nav a:hover,.nav a:focus-visible{color:var(--fg)}
-.spring{flex:1}
-.ghost{
-  border:1px solid var(--line-2);border-radius:7px;padding:6px 13px;font-size:13px;
-  color:var(--fg-1);text-decoration:none;transition:all .18s;display:inline-block;
-}
-.ghost:hover{border-color:var(--blue);color:var(--blue)}
+/* ---- type scale ---- */
+.kicker{font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.02em;color:var(--muted);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.kicker b{color:var(--ink);font-weight:600}
+h1{font-size:clamp(40px, 7.4vw, 96px);line-height:.96;letter-spacing:-.045em;font-weight:750;max-width:14ch;margin:22px 0 0}
+h2{font-size:clamp(30px, 4.4vw, 52px);line-height:1;letter-spacing:-.035em;font-weight:720}
+h3{font-size:19px;line-height:1.25;letter-spacing:-.01em;font-weight:650}
+.lede{font-size:clamp(18px, 1.9vw, 21px);line-height:1.5;max-width:58ch}
+.dek{font-size:18px;color:var(--muted);max-width:62ch}
+.dek strong{color:var(--ink);font-weight:600}
+.small{font-size:14px;color:var(--muted)}
 
 /* ---- hero ---- */
-.hero{padding:clamp(56px,10vw,110px) 0 46px}
-.kicker{
-  font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--blue);margin-bottom:18px;
-}
-h1{
-  font-size:clamp(32px,6.2vw,62px);line-height:1.04;letter-spacing:-.035em;
-  font-weight:700;max-width:19ch;margin-bottom:22px;
-}
-h1 em{font-style:normal;background:linear-gradient(100deg,var(--blue),var(--violet));
-  -webkit-background-clip:text;background-clip:text;color:transparent}
-.lede{font-size:clamp(15px,2vw,18.5px);color:var(--fg-1);max-width:62ch;line-height:1.62}
+.hero{padding:clamp(40px, 7vw, 88px) 0 clamp(40px, 6vw, 72px)}
+.hero-intro{display:grid;grid-template-columns:minmax(0, 7fr) minmax(0, 5fr);gap:24px 48px;margin-top:32px;align-items:end}
+.prov{font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--muted);border-left:2px solid var(--ink);padding-left:14px}
+.prov b{color:var(--ink);font-weight:600}
+.hero-grid{display:grid;grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);gap:40px 56px;margin-top:clamp(40px, 6vw, 72px);border-top:2px solid var(--ink);padding-top:28px}
+.run-side{align-self:start;position:sticky;top:76px}
+.mini{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
 
-/* ---- stat strip ---- */
-.stats{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
-  gap:1px;background:var(--line);border:1px solid var(--line);
-  border-radius:var(--r);overflow:hidden;margin:44px 0 0;
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.tab{border:1px solid var(--ctrl);background:transparent;border-radius:999px;padding:7px 14px;font-size:15px;line-height:1.2;cursor:pointer;text-align:left}
+.tab:hover{background:var(--sunk)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab .t-sub{display:block;font-family:var(--mono);font-size:11px;opacity:.8;margin-top:2px}
+
+.run-card{background:var(--surface);border:1px solid var(--rule);padding:22px 22px 18px}
+.rc-kicker{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.rc-title{font-size:clamp(24px, 2.6vw, 30px);line-height:1.08;letter-spacing:-.025em;font-weight:720;margin:8px 0 6px}
+.rc-title:focus{outline:none}
+.rc-title:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.rc-name{font-size:12.5px;color:var(--muted);word-break:break-all}
+.rc-state{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:16px 0 14px}
+.rc-exp{font-size:14px;color:var(--muted)}
+.rc-reason{font-size:17px;line-height:1.5;border-left:3px solid var(--accent);padding:2px 0 2px 14px;margin:0 0 18px}
+.rc-reason.is-plain{border-left-color:var(--ink)}
+.rc-dl{display:grid;gap:10px;font-size:14.5px}
+.rc-dl > div{display:grid;grid-template-columns:118px minmax(0,1fr);gap:12px;border-top:1px solid var(--rule);padding-top:10px}
+.rc-dl dt{color:var(--muted)}
+.rc-dl dd{min-width:0}
+.rc-dl code{word-break:break-all}
+.ok-mark{color:var(--ink);font-weight:600}
+
+/* ---- badges and chips: glyph + text + colour, never colour alone ---- */
+.badge{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:13px;font-weight:600;padding:4px 10px;border-radius:3px;border:1px solid currentColor;line-height:1.2}
+.badge code{font-size:inherit;font-weight:inherit}
+.b-ok{color:var(--ink)}
+.b-stop{color:var(--accent);background:var(--accent-soft)}
+.b-fail{color:var(--red);background:var(--red-soft)}
+.b-skip{color:var(--muted);border-style:dashed}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font-family:var(--mono);font-size:12.5px;font-weight:600;line-height:1;padding:5px 7px 4px;border:1px solid var(--ctrl);border-radius:3px;white-space:nowrap}
+.chip-key{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.chip-ret{border-style:dashed;color:var(--muted);font-weight:500}
+.chip-exc{border-color:var(--ink)}
+.chip-lbl{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-right:2px}
+.t-doc,.t-item,.t-id,.t-hash{font-size:.86em;font-weight:500;white-space:nowrap}
+.t-amt{font-family:var(--mono);font-size:.9em;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+abbr.t-rule{font-family:var(--mono);font-size:.86em;font-weight:600;text-decoration:none;border-bottom:1px dotted currentColor;cursor:help}
+
+/* ---- the timeline: 11 nodes, one direction ---- */
+.tl{counter-reset:none}
+.tl-node{display:grid;grid-template-columns:44px minmax(0,1fr);gap:0 18px;position:relative;padding-bottom:26px}
+.tl-node::before{content:"";position:absolute;left:21px;top:46px;bottom:-2px;width:2px;background:var(--ink)}
+.tl-node:last-child::before{display:none}
+.tl-node.after-stop::before,.tl-node.unreached::before{background:repeating-linear-gradient(to bottom, var(--ctrl) 0 5px, transparent 5px 10px)}
+.tl-mark{width:44px;height:44px;display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:600;border:2px solid var(--ink);border-radius:50%;background:var(--bg);position:relative;z-index:1}
+.tl-node.gate .tl-mark{border-radius:4px;transform:rotate(45deg) scale(.86)}
+.tl-node.gate .tl-mark span{transform:rotate(-45deg)}
+.tl-node.is-stop .tl-mark{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tl-node.is-fail .tl-mark{background:var(--red);border-color:var(--red);color:var(--bg)}
+.tl-node.unreached .tl-mark{border-style:dashed;border-color:var(--ctrl);color:var(--muted);background:transparent}
+.tl-body{min-width:0;padding-top:4px}
+.stage{display:block;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.tl-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.node{font-size:16px;font-weight:600;color:var(--ink)}
+.tl-node.unreached .node{color:var(--muted);font-weight:500}
+.tl-desc{font-size:14.5px;color:var(--muted);margin-top:3px}
+.ms{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.step{margin-top:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--rule)}
+.tl-node.is-stop .step:last-child{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.tl-node.is-fail .step:last-child{border-color:var(--red);box-shadow:inset 3px 0 0 var(--red)}
+.step + .step{margin-top:8px}
+.step-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-bottom:6px}
+.seq{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.detail{font-size:15.5px;line-height:1.5}
+.err{font-size:14.5px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--rule)}
+.err b{font-family:var(--mono);font-size:13px}
+.calls{margin-top:10px;display:grid;gap:6px}
+.call{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:14px}
+.call .op{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.call .res{color:var(--muted);font-size:13.5px}
+.call .doc{font-family:var(--mono);font-size:13.5px;font-weight:600}
+.verified{font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 6px;border:1px solid var(--ink);border-radius:2px;white-space:nowrap;cursor:help}
+.notwritten{font-family:var(--mono);font-size:12px;color:var(--muted);border:1px dashed var(--ctrl);padding:2px 6px;border-radius:2px}
+.rules-row{margin-top:10px}
+.ss{margin-top:10px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:14.5px;border:1px solid var(--accent);padding:10px 12px;background:var(--accent-soft)}
+.ss dt{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);padding-top:2px}
+.ss dd{min-width:0}
+.ss .ss-x{grid-column:1 / -1;font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--accent)}
+.tl-note{font-size:14px;color:var(--muted);margin-top:6px}
+
+@media (prefers-reduced-motion: no-preference){
+  .tl-node.enter{animation:rise .42s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i) * 35ms)}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 }
-.stat{background:var(--bg-1);padding:20px 18px}
-.stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);margin-bottom:9px}
-.stat .v{font-size:clamp(24px,3.4vw,33px);font-weight:700;letter-spacing:-.03em;line-height:1}
-.stat .s{font-size:12.5px;color:var(--mut);margin-top:7px}
-.v.good{color:var(--ok)}
 
 /* ---- sections ---- */
-section{padding:62px 0;border-top:1px solid var(--line);margin-top:62px}
-h2{font-size:clamp(21px,3.4vw,30px);letter-spacing:-.025em;font-weight:650;margin-bottom:11px}
-.sub{color:var(--mut);max-width:70ch;margin-bottom:30px;font-size:14.5px}
+section[id]{scroll-margin-top:52px}
+.sec{padding:clamp(56px, 8vw, 104px) 0 0}
+.sec-head{display:grid;grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);gap:16px 56px;border-top:2px solid var(--ink);padding-top:20px;margin-bottom:clamp(28px, 4vw, 48px)}
+.sec-no{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px}
+.sec-head .dek{padding-top:30px}
 
-/* ---- v1 v2 ---- */
-.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
-.card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:22px}
-.card h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);
-  font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:9px}
-.tag{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;
-  background:var(--bg-2);border:1px solid var(--line-2);color:var(--fg-1);letter-spacing:0}
-.big{font-size:40px;font-weight:700;letter-spacing:-.035em;line-height:1}
-.delta{color:var(--ok);font-size:13px;font-weight:600;margin-top:8px}
-.bar{height:5px;border-radius:3px;background:var(--bg-2);overflow:hidden;margin-top:16px}
-.bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--ok));
-  width:0;transition:width 1.1s var(--ease)}
-.kv{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-top:1px solid var(--line)}
-.kv:first-of-type{border-top:0;margin-top:14px}
-.kv span:first-child{color:var(--mut)}
-.kv span:last-child{font-family:var(--mono);font-size:12.5px}
+/* ---- attacks ---- */
+.cat{margin-top:40px}
+.cat:first-child{margin-top:0}
+.cat-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 18px;border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:16px}
+.cat-head h3{font-size:22px;letter-spacing:-.02em}
+.cat-head h3::first-letter{text-transform:uppercase}
+.cat-count{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.cat-note{font-size:14.5px;color:var(--muted);margin:-6px 0 16px;max-width:70ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fill, minmax(min(100%, 340px), 1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--accent);padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card.is-fail{border-top-color:var(--red)}
+.card h4{font-size:18px;line-height:1.25;letter-spacing:-.01em;font-weight:650}
+.card blockquote{font-size:15px;line-height:1.5;color:var(--ink)}
+.card blockquote::before{content:"\201C"}
+.card blockquote::after{content:"\201D"}
+.card dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:14px;margin-top:auto;border-top:1px solid var(--rule);padding-top:12px}
+.card dt{color:var(--muted)}
+.card dd{min-width:0}
+.link-btn{background:none;border:0;padding:0;cursor:pointer;font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-align:left;color:var(--ink)}
+.link-btn:hover{text-decoration-thickness:2px}
+.allowed{margin-top:14px;display:grid;gap:6px}
+.allowed li{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:14.5px;padding:8px 0;border-top:1px dashed var(--rule)}
+.allowed .al-k{font-family:var(--mono);font-size:12px;color:var(--muted)}
 
-/* ---- bug callouts ---- */
-.bugs{display:grid;gap:14px;margin-top:26px}
-.bug{background:var(--bg-1);border:1px solid var(--line);border-left:3px solid var(--warn);
-  border-radius:var(--r);padding:18px 20px}
-.bug h4{font-size:14.5px;font-weight:600;margin-bottom:7px}
-.bug p{font-size:13.6px;color:var(--fg-1);line-height:1.6}
-.bug code{font-family:var(--mono);font-size:12.2px;background:var(--bg-2);
-  padding:1.5px 5px;border-radius:4px;color:var(--blue)}
+/* ---- approval receipt ---- */
+.receipt-wrap{display:grid;grid-template-columns:minmax(0, 7fr) minmax(0, 5fr);gap:32px 56px;align-items:start}
+.receipt{background:var(--surface);border:1px solid var(--rule);font-family:var(--mono);font-size:14px;line-height:1.6;padding:24px 24px 20px;position:relative}
+.receipt::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;background:radial-gradient(circle at 6px -2px, transparent 6px, var(--surface) 6.5px) 0 0 / 12px 8px repeat-x}
+.rcpt-row{display:grid;grid-template-columns:minmax(0, 1fr) auto;gap:4px 16px;padding:6px 0;border-bottom:1px dashed var(--rule)}
+.rcpt-row span:first-child{color:var(--muted)}
+.rcpt-row span:last-child{text-align:right;font-weight:600;overflow-wrap:anywhere}
+.rcpt-title{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.diff{margin:16px 0;border:1px solid var(--ink)}
+.diff-h{font-size:12px;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--rule)}
+.diff-l{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;padding:6px 10px;align-items:baseline}
+.diff-l.minus{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.diff-l.plus{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.diff-l b{font-weight:700;text-decoration:none}
+.verdict{font-family:var(--sans);font-size:15px;line-height:1.5;margin-top:16px}
+.plain-diff{font-size:clamp(30px, 4.4vw, 52px);line-height:1.05;letter-spacing:-.035em;font-weight:720}
+.plain-diff .from{color:var(--muted);text-decoration:line-through;text-decoration-thickness:3px}
+.plain-diff .to{color:var(--accent)}
+.receipt-say{margin-top:18px;font-size:17px;max-width:46ch}
 
-/* ---- table ---- */
-.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
-.chip{
-  font-size:12.5px;padding:5px 12px;border-radius:99px;border:1px solid var(--line-2);
-  background:var(--bg-1);color:var(--fg-1);cursor:pointer;transition:all .16s;font-family:inherit;
-}
-.chip:hover{border-color:var(--blue);color:var(--fg)}
-.chip[aria-pressed=true]{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
-.tablewrap{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg-1)}
-table{width:100%;border-collapse:collapse;font-size:13.4px}
-thead th{
-  text-align:left;padding:11px 14px;background:var(--bg-2);color:var(--mut);
-  font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;
-  border-bottom:1px solid var(--line);position:sticky;top:58px;z-index:2;
-}
-tbody tr{border-top:1px solid var(--line);cursor:pointer;transition:background .14s}
-tbody tr:hover{background:var(--bg-2)}
-tbody tr[aria-expanded=true]{background:var(--bg-2)}
-td{padding:11px 14px;vertical-align:top}
-td.mono,.mono{font-family:var(--mono);font-size:12.3px}
-.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2.5px 9px;border-radius:99px;white-space:nowrap}
-.p-ok{background:var(--ok-bg);color:var(--ok)}
-.p-warn{background:var(--warn-bg);color:var(--warn)}
-.p-bad{background:var(--bad-bg);color:var(--bad)}
-.p-blue{background:var(--blue-bg);color:var(--blue)}
-.rule{font-family:var(--mono);font-size:11px;background:var(--bg-2);border:1px solid var(--line-2);
-  padding:1px 6px;border-radius:4px;color:var(--violet);margin-right:4px;display:inline-block}
+/* ---- numbers ---- */
+.metrics{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));border-top:1px solid var(--ink);border-left:1px solid var(--rule)}
+.metric{padding:20px 20px 18px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:10px;min-width:0}
+.metric.lead{grid-column:span 2;background:var(--surface)}
+.metric h3{font-size:15px;font-weight:650;letter-spacing:0}
+.fig{font-size:clamp(44px, 6vw, 76px);line-height:.95;letter-spacing:-.04em;font-weight:750;font-variant-numeric:tabular-nums}
+.metric:not(.lead) .fig{font-size:clamp(36px, 4vw, 52px)}
+.fig-of{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.fig-unit{font-size:.4em;letter-spacing:0;font-weight:600;margin-left:4px}
+.metric p.def{font-size:14.5px;color:var(--muted)}
+.corpus{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:auto;padding-top:8px;border-top:1px dotted var(--rule)}
+.fig.is-fail{color:var(--red)}
+.num-pair{display:flex;gap:28px;flex-wrap:wrap}
+.num-pair small{display:block;font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0;margin-top:6px}
 
-/* ---- trace ---- */
-.detail td{background:#090c11;padding:0}
-.trace{padding:18px 20px}
-.step{display:grid;grid-template-columns:26px 1fr auto;gap:12px;align-items:start;
-  padding:8px 0;border-left:1px solid var(--line);margin-left:9px;padding-left:18px;position:relative}
-.step::before{content:'';position:absolute;left:-4.5px;top:14px;width:8px;height:8px;
-  border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--bg-1)}
-.step.err::before{background:var(--bad)}
-.step.pause::before{background:var(--warn)}
-.step .n{font-family:var(--mono);font-size:11px;color:var(--mut)}
-.step .b{font-size:13.2px}
-.step .b b{font-weight:600}
-.step .b em{font-style:normal;color:var(--mut);font-size:12.6px;display:block;margin-top:2px}
-.step .t{font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+.touch-wrap{display:grid;grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);gap:24px 56px;margin-top:48px;align-items:start}
+table{border-collapse:collapse;width:100%}
+.touch caption{text-align:left;font-size:14px;color:var(--muted);padding-bottom:10px;caption-side:top}
+.touch th,.touch td{border:1px solid var(--rule);padding:12px 14px;text-align:left;vertical-align:top}
+.touch thead th{font-size:14px;font-weight:600}
+.touch tbody th{font-size:14px;font-weight:600;width:34%}
+.touch td{font-size:30px;font-weight:720;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.touch td small{display:block;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:0;color:var(--muted)}
+.touch td.miss{background:var(--sunk)}
+.touch td.miss.is-fail{color:var(--red);background:var(--red-soft)}
+
+.versions{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));margin-top:56px;border-top:1px solid var(--ink)}
+.ver{padding:20px 24px 8px 0;display:flex;flex-direction:column;gap:10px;min-width:0;position:relative}
+.ver + .ver{padding-left:24px;border-left:1px solid var(--rule)}
+.ver-tag{font-family:var(--mono);font-size:13px;font-weight:600}
+.ver-tag span{color:var(--muted);font-weight:500}
+.ver-fig{font-size:clamp(36px, 4.6vw, 60px);line-height:.95;letter-spacing:-.04em;font-weight:750;font-variant-numeric:tabular-nums}
+.ver-sub{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.ver-say{font-size:15.5px;line-height:1.5}
+.squares{display:flex;flex-wrap:wrap;gap:3px;max-width:100%}
+.squares i{width:11px;height:11px;background:var(--ink);display:block}
+.squares i.f{background:transparent;border:2px solid var(--red)}
+.ver-fail{font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.6}
+.ver-fail b{color:var(--red);font-weight:600}
 
 /* ---- policy ---- */
-.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:14px}
-.rl{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:17px}
-.rl .id{font-family:var(--mono);font-size:11.5px;color:var(--violet);font-weight:500}
-.rl h4{font-size:14.5px;margin:6px 0 8px;font-weight:600}
-.rl p{font-size:12.8px;color:var(--mut);line-height:1.55}
+.pol-meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14.5px;margin-bottom:20px}
+.rules{border-top:1px solid var(--ink)}
+.rule{display:grid;grid-template-columns:72px minmax(0, 6fr) minmax(0, 4fr) minmax(0, 3fr);gap:8px 24px;padding:16px 0;border-bottom:1px solid var(--rule);align-items:start}
+.rule-id{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em}
+.rule h3{font-size:17px}
+.rule-effect{font-size:15px;color:var(--muted);margin-top:4px}
+.rule-effect code{color:var(--ink)}
+.rule-th{font-size:14px}
+.rule-th dt{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rule-th dd{font-family:var(--mono);font-size:13px;margin-bottom:8px}
+.cite{font-size:14px}
+.cite-n{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--sunk);margin:6px 0 6px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ink)}
+.cite details{margin-top:4px}
+.cite summary{cursor:pointer;font-size:13.5px;color:var(--muted)}
+.cite summary:hover{color:var(--ink)}
+.cite ul{margin-top:6px;display:grid;gap:4px}
+.cite li .link-btn{font-family:var(--mono);font-size:12px;font-weight:500;word-break:break-all}
 
-.note{background:var(--bg-1);border:1px solid var(--line);border-left:3px solid var(--blue);
-  border-radius:var(--r);padding:16px 20px;font-size:13.8px;color:var(--fg-1);margin-top:26px}
-.note b{color:var(--fg)}
-footer{border-top:1px solid var(--line);margin-top:62px;padding:34px 0 56px;color:var(--mut);font-size:13px}
-footer a{color:var(--fg-1)}
+/* ---- ledger ---- */
+.ledger-meta{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:14.5px;margin-bottom:16px}
+.ledger th,.ledger td{text-align:left;vertical-align:top;padding:12px 14px 12px 0;border-bottom:1px solid var(--rule);font-size:14.5px}
+.ledger thead th{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--ink)}
+.ledger td.sc .link-btn{font-family:var(--mono);font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.ledger td.sc small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13.5px;color:var(--muted);margin-top:14px}
 
-.reveal{opacity:0;transform:translateY(16px)}
-.reveal.in{opacity:1;transform:none;transition:opacity .7s var(--ease),transform .7s var(--ease)}
-@media (prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important}
-  .reveal{opacity:1;transform:none}
-  html{scroll-behavior:auto}
+/* ---- limits + footer ---- */
+.limits{display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:0 56px}
+.limits li{padding:14px 0;border-top:1px solid var(--rule);font-size:16px}
+.limits li b{display:block;font-size:16px;margin-bottom:2px}
+.limits li span{color:var(--muted)}
+footer{margin-top:clamp(64px, 9vw, 112px);border-top:2px solid var(--ink);padding:24px 0 48px}
+.foot-say{font-size:18px;font-weight:600;max-width:60ch}
+.foot-links{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;font-family:var(--mono);font-size:13px}
+.foot-links a{color:var(--muted)}
+.foot-links a:hover{color:var(--ink)}
+
+.notice{border:1px solid var(--red);background:var(--red-soft);color:var(--ink);padding:16px 18px;margin-top:24px;font-size:15.5px}
+.notice code{background:var(--surface);padding:1px 5px}
+.loading{color:var(--muted);font-size:15px;padding:12px 0}
+
+/* ---- responsive ---- */
+@media (max-width: 980px){
+  .hero-intro,.hero-grid,.sec-head,.receipt-wrap,.touch-wrap{grid-template-columns:minmax(0,1fr)}
+  .run-side{position:static}
+  .sec-head .dek{padding-top:0}
+  .metrics{grid-template-columns:repeat(2, minmax(0,1fr))}
+  .rule{grid-template-columns:56px minmax(0,1fr) minmax(0, 200px)}
+  .rule .rule-th{grid-column:2}
+  .rule .cite{grid-column:3;grid-row:1 / span 2}
+  .limits{grid-template-columns:minmax(0,1fr)}
 }
-@media(max-width:720px){
-  .hide-sm{display:none}
-  thead th{top:0;position:static}
+@media (max-width: 720px){
+  .mast-in{gap:10px}
+  .brand span{display:none}
+  .nav a{padding:6px 7px;font-size:13.5px}
+  .versions{grid-template-columns:minmax(0,1fr)}
+  .ver{padding:20px 0 16px}
+  .ver + .ver{padding-left:0;border-left:0;border-top:1px solid var(--rule)}
+  .rule{grid-template-columns:48px minmax(0,1fr)}
+  .rule .rule-th,.rule .cite{grid-column:2;grid-row:auto}
+  .ledger thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .ledger tr{display:block;border-bottom:1px solid var(--rule);padding:10px 0}
+  .ledger td{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;border:0;padding:5px 0}
+  .ledger td::before{content:attr(data-label);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+  .rc-dl > div{grid-template-columns:minmax(0,1fr);gap:4px}
+}
+@media (max-width: 520px){
+  body{font-size:16px}
+  .metrics{grid-template-columns:minmax(0,1fr)}
+  .metric.lead{grid-column:auto}
+  .tl-node{grid-template-columns:36px minmax(0,1fr);gap:0 12px}
+  .tl-mark{width:36px;height:36px;font-size:12px}
+  .tl-node::before{left:17px;top:38px}
+  .step{padding:12px 12px}
+  .run-card{padding:18px 16px 14px}
+  .receipt{padding:18px 16px 16px;font-size:13px}
+  .rcpt-row{grid-template-columns:minmax(0,1fr)}
+  .rcpt-row span:last-child{text-align:left}
+}
+@media print{
+  .mast,.tabs,.theme-btn,.link-btn,.skip{display:none!important}
+  .run-side{position:static}
+  body{background:#fff;color:#000}
 }
 </style>
 </head>
 <body>
-<div class="aurora" aria-hidden="true"></div>
+<a class="skip" href="#run">Skip to the recorded run</a>
 
-<header class="nav">
-  <div class="wrap nav-in">
-    <span class="brand"><span class="dot"></span>ProcureFlow</span>
-    <a href="#results" class="hide-sm">Results</a>
-    <a href="#runs" class="hide-sm">Runs</a>
-    <a href="#policy" class="hide-sm">Policy</a>
-    <span class="spring"></span>
-    <a class="ghost" href="https://github.com/Mr-Bathwal/ERP">GitHub</a>
+<header class="mast">
+  <div class="wrap mast-in">
+    <a class="brand" href="#top">ProcureFlow<span>evaluation record</span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#run">Run</a>
+      <a href="#attacks">Attacks</a>
+      <a href="#approval">Approval</a>
+      <a href="#numbers">Numbers</a>
+      <a href="#policy">Policy</a>
+      <a href="#exceptions">Exceptions</a>
+    </nav>
+    <button class="theme-btn" id="theme-btn" type="button" aria-label="Switch to dark theme">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>
+    </button>
   </div>
 </header>
 
-<main class="wrap">
+<main id="top">
 
-  <div class="hero">
-    <div class="kicker">Evaluation harness · recorded runs</div>
-    <h1>An agent that runs procure-to-pay, and <em>checks its own work</em>.</h1>
-    <p class="lede">
-      A successful-looking write is not a completed write. HTTP 200 means the
-      server accepted the request, not that the stored document says what you
-      believe it says. So every write here is followed by a read, and a
-      mismatch has its own exception type that is never swallowed.
-    </p>
-    <div class="stats" id="stats"></div>
+<!-- §01 ------------------------------------------------------------ -->
+<section class="hero" id="run" aria-labelledby="hero-title">
+  <div class="wrap">
+    <p class="kicker"><b>§01</b> One recorded run, node by node</p>
+    <h1 id="hero-title">A successful-looking write is not a completed write.</h1>
+    <div class="hero-intro">
+      <p class="lede">ProcureFlow turns a request email or a supplier quote into a Material Request, a Purchase Order, an approval, a goods receipt and a Purchase Invoice in ERPNext, then matches order, receipt and invoice. Every write is read back and compared with what was sent before the run moves on, and every decision cites a rule in the written policy.</p>
+      <p class="prov" id="prov">Loading the record&hellip;</p>
+    </div>
+    <div id="load-notice"></div>
+
+    <div class="hero-grid">
+      <div class="run-side">
+        <h2 class="mini" id="tabs-label">Recorded runs</h2>
+        <div class="tabs" role="tablist" aria-labelledby="tabs-label" id="tabs"></div>
+        <div class="run-card" id="run-card"><p class="loading">Loading&hellip;</p></div>
+      </div>
+      <div role="tabpanel" id="panel" tabindex="-1">
+        <h2 class="mini" id="tl-label">The eleven nodes, in the order the graph allows</h2>
+        <ol class="tl" id="timeline" aria-labelledby="tl-label"></ol>
+      </div>
+    </div>
+    <p class="sr" aria-live="polite" id="announce"></p>
   </div>
+</section>
 
-  <section id="results">
-    <h2>What the evaluation found</h2>
-    <p class="sub">
-      The harness was not a scoreboard. It found two genuine product bugs,
-      three scenarios of mine that were wrong, and one that asserted
-      behaviour the test double could not have.
-    </p>
-    <div class="cmp" id="cmp"></div>
+<!-- §02 ------------------------------------------------------------ -->
+<section class="sec" id="attacks" aria-labelledby="attacks-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no">§02</p><h2 id="attacks-title">Attacks it stops</h2></div>
+      <p class="dek" id="attacks-dek"></p>
+    </header>
+    <div id="attack-groups"><p class="loading">Loading&hellip;</p></div>
+  </div>
+</section>
 
-    <div class="bugs">
-      <div class="bug">
-        <h4>A rejected approval was never recorded as one</h4>
-        <p>The driver checked “has this been rejected?” after <b>every</b> node, so a
-        pre-set rejection escalated the run immediately after <code>extract</code> —
-        before <code>policy_check</code> ran. The trace then read “no approval required”
-        for an order that had just been refused.</p>
+<!-- §03 ------------------------------------------------------------ -->
+<section class="sec" id="approval" aria-labelledby="approval-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no">§03</p><h2 id="approval-title">The approval receipt</h2></div>
+      <p class="dek">An approval is given to an order as it looked at that moment. The gate records a digest of what the approver saw; just before submitting, the order is read back from the ERP and the digest recomputed. If they differ, the approval is void (R12).</p>
+    </header>
+    <div id="receipt"><p class="loading">Loading&hellip;</p></div>
+  </div>
+</section>
+
+<!-- §04 ------------------------------------------------------------ -->
+<section class="sec" id="numbers" aria-labelledby="numbers-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no">§04</p><h2 id="numbers-title">The numbers, with their denominators</h2></div>
+      <p class="dek" id="numbers-dek">Every figure here is read from the eval's own JSON when this page loads. None of them is a production measurement.</p>
+    </header>
+    <div class="metrics" id="metrics"><p class="loading">Loading&hellip;</p></div>
+    <div class="touch-wrap">
+      <div>
+        <h3>Should stop, did stop</h3>
+        <p class="small" style="margin-top:8px">Each scenario states the outcome it expects. A run that should have stopped for a person and did not is <em>false-touchless</em>: the costly mistake, so it is counted first. A run that stops when it should not is a false stop: annoying, not dangerous.</p>
       </div>
-      <div class="bug">
-        <h4>…and the fix for it silently did nothing</h4>
-        <p><code>fn is self.n_approval_gate</code> is never true: Python builds a
-        <b>new bound-method object</b> on every attribute access, so identity
-        comparison always fails. The run fell through to
-        <code>submit_purchase_order</code>, which refused it — the defence-in-depth
-        guard caught the consequence while the cause went unnoticed.
-        <code>==</code> fixed it.</p>
-      </div>
+      <div id="touch"></div>
     </div>
-  </section>
+    <ol class="versions" id="versions" aria-label="Eval versions"></ol>
+  </div>
+</section>
 
-  <section id="runs">
-    <h2>Every scenario</h2>
-    <p class="sub">Click a row for the node-by-node trace, the rules it cited and the documents it created.</p>
-    <div class="tools" id="filters"></div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr>
-          <th>Scenario</th><th class="hide-sm">Category</th><th>Outcome</th>
-          <th class="hide-sm">Rules</th><th class="hide-sm">Exceptions</th><th>ms</th>
-        </tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-  </section>
+<!-- §05 ------------------------------------------------------------ -->
+<section class="sec" id="policy" aria-labelledby="policy-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no">§05</p><h2 id="policy-title">The policy is a document</h2></div>
+      <p class="dek">No threshold lives in the code. The agent parses <code>policy/procurement_policy.md</code> and cites a rule id on every decision. The count beside each rule is how many scenarios cite it in their recorded rules, out of the whole v3 suite.</p>
+    </header>
+    <div class="pol-meta" id="pol-meta"></div>
+    <ol class="rules" id="rules"><li class="loading">Loading&hellip;</li></ol>
+  </div>
+</section>
 
-  <section id="policy">
-    <h2>Policy is a document, not code</h2>
-    <p class="sub">
-      No threshold is in the source. The agent retrieves these with embeddings
-      and cites the rule id on every decision. Change a number in the document
-      and the next run behaves differently — no code change, no redeploy.
-    </p>
-    <div class="rules" id="rules"></div>
-    <div class="note">
-      <b>R3 and R4 combine their two limits differently on purpose.</b>
-      Price takes the <b>tighter</b> of 5% and ₹500; quantity takes the
-      <b>greater</b> of 2% and 1 unit. 5% of a ₹28 pair of gloves costs more to
-      investigate than to pay, while 2% of 10 units would make every
-      single-unit discrepancy an exception. Both directions are tested.
-    </div>
-  </section>
+<!-- §06 ------------------------------------------------------------ -->
+<section class="sec" id="exceptions" aria-labelledby="exceptions-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no">§06</p><h2 id="exceptions-title">Exceptions ledger</h2></div>
+      <p class="dek">Runs where the three-way match or the invoice check raised an exception. An exception is not a failure of the run: it is the run declining to pay without a person, and the invoice is held in ERPNext rather than noted in a spreadsheet (R16).</p>
+    </header>
+    <div class="ledger-meta" id="ledger-meta"></div>
+    <div id="ledger"><p class="loading">Loading&hellip;</p></div>
+  </div>
+</section>
 
-  <footer>
-    <p><b>Recorded runs from the evaluation harness.</b> The agent itself runs
-    against a local ERPNext; these numbers were produced against
-    <span class="mono">FakeERPClient</span>, and <span class="mono">results.json</span>
-    says so in its own <span class="mono">mode</span> field. Documents are synthetic.</p>
-    <p style="margin-top:10px">
-      <a href="https://github.com/Mr-Bathwal/ERP">Source</a> ·
-      <a href="https://github.com/Mr-Bathwal/ERP/blob/main/eval/results/results.md">results.md</a> ·
-      <a href="https://github.com/Mr-Bathwal/ERP/blob/main/policy/procurement_policy.md">The policy</a>
-    </p>
-  </footer>
+<!-- §07 ------------------------------------------------------------ -->
+<section class="sec" id="limits" aria-labelledby="limits-title">
+  <div class="wrap">
+    <header class="sec-head">
+      <div><p class="sec-no">§07</p><h2 id="limits-title">What this record is not</h2></div>
+      <p class="dek">Read these before quoting any number above.</p>
+    </header>
+    <ul class="limits" id="limits-list"></ul>
+  </div>
+</section>
+
 </main>
 
+<footer>
+  <div class="wrap">
+    <p class="foot-say">Synthetic documents; results against an in-memory ERPNext double (FakeERPClient); no live ERP run yet.</p>
+    <p class="foot-links">
+      <a href="results-v3.json">results-v3.json</a>
+      <a href="results-v2.json">results-v2.json</a>
+      <a href="results-v1.json">results-v1.json</a>
+      <a href="traces.json">traces.json</a>
+      <a href="policy.json">policy.json</a>
+    </p>
+  </div>
+</footer>
+
+<noscript><div class="wrap"><p class="notice">This page builds every section from the eval's JSON files with JavaScript. The raw files are linked in the footer.</p></div></noscript>
+
 <script>
-const $ = (s,r=document)=>r.querySelector(s);
-const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const STATE_CLASS = {
-  completed:'p-ok', dry_run:'p-ok', completed_with_exceptions:'p-warn',
-  awaiting_approval:'p-warn', needs_human:'p-warn', escalated:'p-bad',
-  blocked:'p-bad', failed:'p-bad'
+'use strict';
+(function () {
+
+/* ================================================================
+   Static vocabulary. These describe the architecture (the 11 nodes,
+   in the only order the graph allows), never results. Every number
+   on the page is computed from the JSON below at load time.
+   ================================================================ */
+const NODES = [
+  { id: 'extract',                 stage: 'Read',   say: 'Screen the document for hidden or addressed text, then read it into lines.' },
+  { id: 'validate_masters',        stage: 'Read',   say: 'The supplier and every item must exist in the ERPNext masters and be able to trade.' },
+  { id: 'policy_check',            stage: 'Read',   say: 'Value the order and retrieve the rules that apply.' },
+  { id: 'create_material_request', stage: 'Write',  say: 'Write and submit the Material Request.' },
+  { id: 'create_purchase_order',   stage: 'Write',  say: 'Draft the Purchase Order; read back its stored total and lines.' },
+  { id: 'approval_gate',           stage: 'Gate',   say: 'The only way to submit: a valid approval, or none required.' },
+  { id: 'submit_purchase_order',   stage: 'Gate',   say: 'Re-read the order, compare it with what was approved, then submit.' },
+  { id: 'goods_receipt',           stage: 'Settle', say: 'Record what arrived against the order.' },
+  { id: 'create_purchase_invoice', stage: 'Settle', say: 'Book the invoice; any match exception is written onto it as a hold.' },
+  { id: 'three_way_match',         stage: 'Settle', say: 'Order against receipt against invoice.' },
+  { id: 'report',                  stage: 'Settle', say: 'Record the outcome and the exception report.' }
+];
+const CONTROL = {
+  extract: 'Document screen', validate_masters: 'Supplier master check', policy_check: 'Policy check',
+  create_material_request: 'Material Request write', create_purchase_order: 'Purchase Order write',
+  approval_gate: 'Approval gate', submit_purchase_order: 'Read-back before submit',
+  goods_receipt: 'Goods receipt', create_purchase_invoice: 'Invoice write',
+  three_way_match: 'Three-way match', report: 'Report'
+};
+const FEATURED = [
+  ['happy_over_threshold', 'Approved, then written'],
+  ['order_edited_while_awaiting_approval_is_not_submitted', 'Edited after approval'],
+  ['hidden_instruction_in_quote_pdf_quarantined', 'Hidden text in a quote'],
+  ['read_back_verification_failure', 'Stored differently than sent'],
+  ['r10_one_paisa_over_is_blocked', 'One paisa over the ceiling']
+];
+const RECEIPT_RUN = 'order_edited_while_awaiting_approval_is_not_submitted';
+const ATTACK_CATS = ['untrusted input', 'authority', 'master data', 'duplicate detection', 'boundaries'];
+const CAT_NOTE = {
+  'untrusted input': 'Each document here was screened before any model read it. These are the synthetic samples that were tested, not a guarantee against every injection.',
+  'boundaries': 'Thresholds tested to the paisa on both sides.'
 };
 
-async function load(f){ const r = await fetch(f); if(!r.ok) throw new Error(f); return r.json(); }
+/* Run states and step outcomes: glyph + text + colour. Each glyph
+   keeps one meaning; red appears only when the record holds a failure. */
+const STATE = {
+  completed:                 { g: '✓', cls: 'ok' },
+  completed_with_exceptions: { g: '▲', cls: 'stop' },
+  awaiting_approval:         { g: '◆', cls: 'stop' },
+  needs_human:               { g: '?',      cls: 'stop' },
+  escalated:                 { g: '↑', cls: 'stop' },
+  blocked:                   { g: '✕', cls: 'stop' },
+  dry_run:                   { g: '○', cls: 'ok' }
+};
+const OUTCOME = {
+  ok: ['✓', 'ok'], auto: ['✓', 'ok'], approved: ['✓', 'ok'],
+  skipped: ['○', 'skip'],
+  paused: ['◆', 'stop'], refused: ['✕', 'stop'], rejected: ['✕', 'stop'],
+  blocked: ['✕', 'stop'], error: ['✕', 'stop'],
+  needs_human: ['?', 'stop'], escalated: ['↑', 'stop']
+};
+const READ_BACK_TITLE = 'Read back from the ERP and compared with what was sent before the run moved on';
 
-function stats(v2){
-  $('#stats').innerHTML = [
-    ['Task success', `<span class="v good">${v2.success_rate}%</span>`, `${v2.passed} of ${v2.scenarios} scenarios`],
-    ['Exceptions detected', `<span class="v good">${v2.exception_detection_rate}%</span>`, `${v2.exception_scenarios} planted defects`],
-    ['Latency p50 / p95', `<span class="v">${v2.p50_ms}<small style="font-size:14px;color:var(--mut)">ms</small></span>`, `p95 ${v2.p95_ms} ms`],
-    ['Avg steps per run', `<span class="v">${v2.avg_steps}</span>`, `${v2.scenarios} runs in ${v2.total_wall_s}s`],
-    ['Offline tests', `<span class="v">80</span>`, 'no ERP, no keys, ~3s'],
-  ].map(([k,v,s])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
+/* ================================================================
+   Helpers
+   ================================================================ */
+const $ = (sel) => document.querySelector(sel);
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ESC[c]);
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ruleNum = (id) => parseInt(String(id).slice(1), 10) || 0;
+const byRule = (a, b) => ruleNum(a) - ruleNum(b);
+const uniq = (xs) => Array.from(new Set(xs));
+const pct = (x) => (Number.isInteger(x) ? String(x) : Number(x).toFixed(1)) + '%';
+const RULE_IN_TEXT = /\bR\d{1,2}\b/g;
+const rulesIn = (text) => uniq(String(text || '').match(RULE_IN_TEXT) || []);
+
+/* Integer paise to rupees, en-IN grouping, no floats. */
+function inr(paise) {
+  let p = BigInt(paise);
+  const neg = p < 0n; if (neg) p = -p;
+  const rupees = new Intl.NumberFormat('en-IN').format(p / 100n);
+  return (neg ? '−' : '') + '₹ ' + rupees + '.' + String(p % 100n).padStart(2, '0');
 }
 
-function compare(v1,v2){
-  const card = (d,label,cls='') => `
-    <div class="card">
-      <h3>${label} <span class="tag">${esc(d.mode)}</span></h3>
-      <div class="big ${cls}">${d.success_rate}<small style="font-size:20px">%</small></div>
-      <div class="delta">${d.passed} / ${d.scenarios} scenarios passed</div>
-      <div class="bar"><i data-w="${d.success_rate}"></i></div>
-      <div class="kv"><span>Exception detection</span><span>${d.exception_detection_rate}%</span></div>
-      <div class="kv"><span>Latency p50</span><span>${d.p50_ms} ms</span></div>
-      <div class="kv"><span>Latency p95</span><span>${d.p95_ms} ms</span></div>
-      <div class="kv"><span>Avg steps</span><span>${d.avg_steps}</span></div>
-      <div class="kv"><span>Failures</span><span>${d.failed}</span></div>
-    </div>`;
-  $('#cmp').innerHTML = card(v1,'v1 — first run') + card(v2,'v2 — after fixes','good') + `
-    <div class="card">
-      <h3>What changed</h3>
-      <div class="kv"><span>Product bugs fixed</span><span>2</span></div>
-      <div class="kv"><span>Scenarios corrected</span><span>3</span></div>
-      <div class="kv"><span>Scenario removed</span><span>1</span></div>
-      <div class="kv"><span>Net scenarios</span><span>24 → 23</span></div>
-      <p style="font-size:12.8px;color:var(--mut);margin-top:14px;line-height:1.55">
-        <code style="font-family:var(--mono);font-size:11.8px">transient_error_is_retried</code>
-        asserted retry behaviour the in-memory double cannot have — retries live in
-        the HTTP transport. It became two unit tests against the real client with a
-        stubbed transport, which is a stronger test.
-      </p>
-    </div>`;
-  requestAnimationFrame(()=>document.querySelectorAll('.bar i').forEach(i=>i.style.width=i.dataset.w+'%'));
+const WORD = { pdf: 'PDF', erp: 'ERP', erpnext: 'ERPNext', gstin: 'GSTIN', r1: 'R1', r10: 'R10', ai: 'AI' };
+function human(name) {
+  const w = String(name).split('_').map((x) => WORD[x] || x);
+  if (w.length && w[0]) w[0] = w[0].charAt(0).toUpperCase() + w[0].slice(1);
+  return w.join(' ');
 }
 
-function traceFor(run, traces){
-  const t = traces.find(x => x.scenario === run.name);
-  if(!t || !t.steps?.length) return '<p style="color:var(--mut);font-size:13px">No trace recorded for this run.</p>';
-  return t.steps.map(s=>{
-    const cls = s.outcome==='error' ? 'err' : (s.outcome==='paused'?'pause':'');
-    const rules = (s.rules_cited||[]).map(r=>`<span class="rule">${esc(r)}</span>`).join('');
-    const docs = (s.erp_docs||[]).filter(Boolean).map(d=>`<span class="mono" style="color:var(--blue)">${esc(d)}</span>`).join(' ');
-    return `<div class="step ${cls}">
-      <span class="n">${s.seq}</span>
-      <span class="b"><b>${esc(s.node)}</b> ${rules}
-        <em>${esc(s.detail||s.error||s.outcome)} ${docs}</em></span>
-      <span class="t">${s.ms}ms</span>
-    </div>`;
+let D = null;   // loaded data
+
+/* Mark up ids, amounts and rule ids inside recorded text. The text is
+   escaped first; only whole tokens are wrapped. */
+const TOKEN_RE = new RegExp([
+  '(\\b(?:MAT-MR|PUR-ORD|MAT-PRE|ACC-PINV)-\\d{4}-\\d{5}\\b|\\bDRYRUN-[A-Z]+(?:-[A-Z]+)*\\b)',
+  '(\\bR\\d{1,2}\\b)',
+  '(\\b\\d{1,3}(?:,\\d{2,3})+\\.\\d{2}\\b|\\b\\d{1,3}\\.\\d{2}\\b)',
+  '(\\b[A-Z]{3}-[A-Z]{3}-\\d{1,3}\\b)',
+  '(\\b\\d{2}[A-Z]{5}\\d{4}[A-Z]\\d[A-Z][0-9A-Z]\\b)',
+  '(\\b[0-9a-f]{12}\\b)'
+].join('|'), 'g');
+function rich(text) {
+  return esc(text).replace(TOKEN_RE, (m, doc, rule, amt, item, gstin) => {
+    if (doc) return '<code class="t-doc">' + m + '</code>';
+    if (rule) {
+      const r = D && D.rules.get(m);
+      return r ? '<abbr class="t-rule" title="' + esc(m + ' — ' + r.title) + '">' + m + '</abbr>' : '<code>' + m + '</code>';
+    }
+    if (amt) return '<span class="t-amt">' + m + '</span>';
+    if (item) return '<code class="t-item">' + m + '</code>';
+    if (gstin) return '<code class="t-id">' + m + '</code>';
+    return '<code class="t-hash">' + m + '</code>';
+  });
+}
+/* A recorded reason can be cut short by the recorder; say so rather
+   than let a sentence end mid-word without a mark. */
+function richReason(text) {
+  const s = String(text || '');
+  const open = (s.match(/\(/g) || []).length, close = (s.match(/\)/g) || []).length;
+  return rich(s) + (open > close ? '<span title="cut short in the record">…</span>' : '');
+}
+/* Markdown-lite for policy.json: `code` only. */
+function md(text) {
+  return esc(text).replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function chip(id, kind) {
+  const r = D.rules.get(id);
+  const title = r ? id + ' — ' + r.title : id;
+  return '<span class="chip' + (kind ? ' chip-' + kind : '') + '" title="' + esc(title) + '">' + esc(id) + '</span>';
+}
+function chipList(ids, keyIds) {
+  const key = new Set(keyIds || []);
+  return uniq(ids).sort(byRule).map((id) => chip(id, key.has(id) ? 'key' : '')).join('');
+}
+function stateBadge(state, failed) {
+  const s = STATE[state];
+  const cls = failed || !s ? 'fail' : s.cls;
+  const g = failed || !s ? '!' : s.g;
+  return '<span class="badge b-' + cls + '"><span aria-hidden="true">' + g + '</span><code>' + esc(state) + '</code></span>';
+}
+function outcomeBadge(outcome) {
+  const o = OUTCOME[outcome] || ['!', 'fail'];
+  return '<span class="badge b-' + o[1] + '"><span aria-hidden="true">' + o[0] + '</span><code>' + esc(outcome) + '</code></span>';
+}
+function corpusLabel() {
+  const v3 = D.v3;
+  return 'synthetic corpus, ' + v3.mode + ', ' + (v3.extraction || []).join(', ') + ' extraction';
+}
+function isRetrieval(step) {
+  return (step.tool_calls || []).some((c) => c.kind === 'retrieval');
+}
+function isStopOutcome(o) { return (OUTCOME[o] || [])[1] === 'stop'; }
+
+/* The step that decided where a run ended: the last step with a
+   stopping outcome; failing that, the last step that cited a rule
+   (not counting retrieval, which is a floor, not a decision). */
+function decidingStep(tr) {
+  const steps = tr.steps || [];
+  for (let i = steps.length - 1; i >= 0; i--) if (isStopOutcome(steps[i].outcome)) return steps[i];
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if ((steps[i].rules_cited || []).length && !isRetrieval(steps[i])) return steps[i];
+  }
+  return null;
+}
+/* Which of a run's applied rules the deciding step names. */
+function decisiveRules(run, step) {
+  if (!step) return [];
+  const named = uniq([].concat(step.rules_cited || [], rulesIn(step.detail), rulesIn(step.error)));
+  let hit = named.filter((id) => run.rules_cited.includes(id));
+  if (!hit.length || (hit.length === 1 && hit[0] === 'R1' && run.rules_cited.length > 1 && !run.rules_cited.includes('R1'))) {
+    hit = run.rules_cited.filter((id) => id !== 'R1');
+  }
+  if (!hit.length) hit = run.rules_cited.slice();
+  return hit;
+}
+
+/* ================================================================
+   Load
+   ================================================================ */
+async function getJSON(name) {
+  const res = await fetch(name, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(name + ' returned HTTP ' + res.status);
+  return res.json();
+}
+
+async function load() {
+  const names = ['results-v3.json', 'results-v1.json', 'results-v2.json', 'traces.json', 'policy.json'];
+  const [v3, v1, v2, traces, policy] = await Promise.all(names.map(getJSON));
+  const runs = new Map(v3.runs.map((r) => [r.name, r]));
+  const trace = new Map(traces.map((t) => [t.scenario, t]));
+  const rules = new Map(policy.rules.map((r) => [r.id, r]));
+  return { v1, v2, v3, traces, policy, runs, trace, rules };
+}
+
+/* ================================================================
+   §01 Hero: one run, node by node
+   ================================================================ */
+let current = null;
+
+function featuredList() {
+  return FEATURED.filter(([n]) => D.runs.has(n) && D.trace.has(n));
+}
+
+function renderTabs(active) {
+  const list = featuredList().slice();
+  if (!list.some(([n]) => n === active)) list.push([active, human(active)]);
+  // Re-rendering replaces the buttons; keep keyboard focus on the tablist.
+  const hadFocus = !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#tabs'));
+  $('#tabs').innerHTML = list.map(([n, label], i) => {
+    const sel = n === active;
+    const run = D.runs.get(n);
+    return '<button type="button" role="tab" class="tab" id="tab-' + i + '" data-tab="' + esc(n) + '"' +
+      ' aria-selected="' + sel + '" aria-controls="panel" tabindex="' + (sel ? '0' : '-1') + '">' +
+      esc(label) + '<span class="t-sub">' + esc(run ? run.actual_state : '') + '</span></button>';
+  }).join('');
+  const activeTab = $('#tabs [aria-selected="true"]');
+  if (activeTab) {
+    $('#panel').setAttribute('aria-labelledby', activeTab.id);
+    if (hadFocus) activeTab.focus({ preventScroll: true });
+  }
+}
+
+function renderCall(c) {
+  const name = c.name || '';
+  if (c.kind === 'retrieval') return '';   // shown as the "retrieved" chip row
+  if (c.kind === 'screen') {
+    return '<li class="call"><span class="op">' + esc(name) + '</span><span class="res">' + richReason(c.result) + '</span></li>';
+  }
+  if (c.kind === 'note') {
+    return '<li class="call"><span class="op">' + esc(name) + '</span><span class="res">' + rich(c.result) + '</span></li>';
+  }
+  if (c.kind === 'erp') {
+    const isWrite = /^create_/.test(name) || name === 'submit_doc';
+    const docs = (c.docs || []);
+    const skipped = /^skipped/.test(String(c.result || ''));
+    if (isWrite) {
+      const doc = docs[0] || (c.args && c.args.name) || '';
+      let mark = '';
+      if (skipped) mark = '<span class="notwritten">not written (dry run)</span>';
+      else if (c.ok === true) mark = '<span class="verified" title="' + esc(READ_BACK_TITLE) + '"><span aria-hidden="true">✓ </span>read back</span>';
+      return '<li class="call">' + (doc ? '<span class="doc">' + esc(doc) + '</span>' : '') +
+        '<span class="op">' + esc(name) + '</span>' + mark +
+        '<span class="res">' + rich(c.result) + '</span></li>';
+    }
+    const arg = c.args ? Object.values(c.args).join(', ') : '';
+    return '<li class="call"><span class="op">' + esc(name) + (arg ? '(' + esc(arg) + ')' : '') + '</span><span class="res">→ ' + rich(c.result) + '</span></li>';
+  }
+  return '';
+}
+
+/* "supplier: asked 'X', stored 'Y'" from a VerificationError, as a sent/stored pair. */
+function sentStored(error) {
+  const out = [];
+  const re = /([a-z_ ]+): asked '([^']*)', stored '([^']*)'/g;
+  let m;
+  while ((m = re.exec(String(error || '')))) out.push({ field: m[1].trim(), sent: m[2], stored: m[3] });
+  if (!out.length) return '';
+  return out.map((d) => '<dl class="ss"><dt>sent</dt><dd>' + esc(d.field) + ' = ' + esc(d.sent) + '</dd>' +
+    '<dt>stored</dt><dd>' + esc(d.field) + ' = ' + esc(d.stored) + '</dd>' +
+    '<dd class="ss-x"><span aria-hidden="true">✕ </span>did not match: the run stopped before the next write</dd></dl>').join('');
+}
+
+function renderStep(step, run, multi) {
+  const calls = (step.tool_calls || []).map(renderCall).join('');
+  const retrieved = (step.tool_calls || []).filter((c) => c.kind === 'retrieval');
+  const retSet = new Set([].concat(...retrieved.map((c) => c.returned || [])));
+  const cited = (step.rules_cited || []).filter((id) => !retSet.has(id));
+  let rules = '';
+  if (cited.length) {
+    rules += '<div class="chips rules-row"><span class="chip-lbl">cited</span>' + chipList(cited) + '</div>';
+  }
+  if (retSet.size) {
+    const backend = retrieved[0].backend ? ' (' + retrieved[0].backend + ')' : '';
+    rules += '<div class="chips rules-row"><span class="chip-lbl">retrieved' + esc(backend) + '</span>' +
+      Array.from(retSet).sort(byRule).map((id) => chip(id, 'ret')).join('') + '</div>' +
+      '<p class="tl-note">Retrieval is a floor, not the decision. The run applied ' +
+      (run.rules_cited.length ? uniq(run.rules_cited).sort(byRule).map((id) => '<abbr class="t-rule" title="' + esc((D.rules.get(id) || {}).title || '') + '">' + esc(id) + '</abbr>').join(', ') : 'none') + '.</p>';
+  }
+  const err = step.error
+    ? '<p class="err"><b>' + esc(String(step.error).split(':')[0]) + '</b>' + rich(String(step.error).slice(String(step.error).indexOf(':'))) + '</p>' + sentStored(step.error)
+    : '';
+  const head = '<div class="step-head">' + outcomeBadge(step.outcome) +
+    (multi ? '<span class="seq">step ' + step.seq + '</span>' : '') +
+    (step.ms ? '<span class="ms">' + step.ms + ' ms</span>' : '') + '</div>';
+  const detail = step.detail ? '<p class="detail">' + richReason(step.detail) + '</p>' : '';
+  return '<div class="step">' + head + detail + err + (calls ? '<ul class="calls">' + calls + '</ul>' : '') + rules + '</div>';
+}
+
+function renderRun(name, opts) {
+  const run = D.runs.get(name), tr = D.trace.get(name);
+  if (!run || !tr) return;
+  current = name;
+  const steps = tr.steps || [];
+  const byNode = new Map(NODES.map((n) => [n.id, []]));
+  const nodes = NODES.slice();
+  for (const s of steps) {
+    if (!byNode.has(s.node)) { byNode.set(s.node, []); nodes.push({ id: s.node, stage: '', say: '' }); }
+    byNode.get(s.node).push(s);
+  }
+  const lastIdx = nodes.reduce((acc, n, i) => (byNode.get(n.id).length ? i : acc), -1);
+  const ended = run.actual_state !== 'completed' && run.actual_state !== 'dry_run';
+  const decide = ended ? decidingStep(tr) : null;
+  const decideNode = decide ? decide.node : null;
+  const failed = run.passed === false;
+
+  let seenStage = '';
+  let pastStop = false;
+  const html = nodes.map((n, i) => {
+    const st = byNode.get(n.id);
+    const reached = st.length > 0;
+    const cls = ['tl-node', 'enter'];
+    if (n.id === 'approval_gate') cls.push('gate');
+    if (!reached) cls.push('unreached');
+    const isDecide = n.id === decideNode && reached;
+    if (isDecide) cls.push(failed ? 'is-fail' : 'is-stop');
+    if (pastStop || i >= lastIdx) cls.push('after-stop');
+    if (isDecide) pastStop = true;
+    const stage = n.stage && n.stage !== seenStage ? '<span class="stage">' + esc(n.stage) + '</span>' : '';
+    if (n.stage) seenStage = n.stage;
+    const num = String(i + 1).padStart(2, '0');
+    let body;
+    if (reached) {
+      body = st.map((s) => renderStep(s, run, st.length > 1)).join('');
+    } else {
+      body = '<p class="tl-note">' + (i > lastIdx ? 'Not reached.' : 'No step recorded.') + '</p>';
+    }
+    const stopNote = isDecide
+      ? '<span class="badge b-' + (failed ? 'fail' : 'stop') + '"><span aria-hidden="true">' + (failed ? '!' : '■') + '</span>' +
+        (run.actual_state === 'completed_with_exceptions' ? 'held here' : 'stopped here') + '</span>'
+      : '';
+    return '<li class="' + cls.join(' ') + '" style="--i:' + i + '">' +
+      '<div class="tl-mark" aria-hidden="true"><span>' + num + '</span></div>' +
+      '<div class="tl-body">' + stage +
+        '<div class="tl-head"><code class="node">' + esc(n.id) + '</code>' + stopNote + '</div>' +
+        (n.say ? '<p class="tl-desc">' + esc(n.say) + '</p>' : '') +
+        body +
+      '</div></li>';
+  }).join('');
+  const tl = $('#timeline');
+  tl.innerHTML = html;
+  if (reduceMotion()) tl.querySelectorAll('.enter').forEach((el) => el.classList.remove('enter'));
+
+  // Run card
+  const headOk = tr.chain_head && run.trace_head && tr.chain_head === run.trace_head;
+  const docs = (run.documents || []);
+  const plainReason = run.actual_state === 'completed' || run.actual_state === 'dry_run';
+  $('#run-card').innerHTML =
+    '<p class="rc-kicker">scenario · ' + esc(run.category) + '</p>' +
+    '<h3 class="rc-title" id="rc-title" tabindex="-1">' + esc(human(name)) + '</h3>' +
+    '<code class="rc-name">' + esc(name) + '</code>' +
+    '<div class="rc-state">' + stateBadge(run.actual_state, failed) +
+      '<span class="rc-exp">expected <code>' + esc(run.expected_state) + '</code>' +
+      (failed ? ' <b style="color:var(--red)">did not match</b>' : ' <span class="ok-mark"><span aria-hidden="true">✓</span> matched</span>') + '</span></div>' +
+    '<blockquote class="rc-reason' + (plainReason ? ' is-plain' : '') + '">' + richReason(run.reason) + '</blockquote>' +
+    '<dl class="rc-dl">' +
+      '<div><dt>Rules applied</dt><dd><div class="chips">' + (run.rules_cited.length ? chipList(run.rules_cited) : '—') + '</div></dd></div>' +
+      '<div><dt>Documents</dt><dd>' + (docs.length ? docs.map((d) => '<code>' + esc(d) + '</code>').join('<br>') : 'none written') + '</dd></div>' +
+      '<div><dt>Recorded</dt><dd>' + steps.length + ' step' + (steps.length === 1 ? '' : 's') + ' · ' + esc(run.ms) + ' ms wall time</dd></div>' +
+      '<div><dt>Source</dt><dd><code>' + esc(tr.source_file || '') + '</code></dd></div>' +
+      '<div><dt>Trace head</dt><dd><code>' + esc(String(tr.chain_head || '').slice(0, 16)) + '</code> ' +
+        (headOk ? '<span class="small">matches the head committed in <code>results-v3.json</code></span>'
+                : '<span style="color:var(--red)">differs from <code>results-v3.json</code></span>') + '</dd></div>' +
+    '</dl>';
+
+  $('#announce').textContent = 'Showing ' + human(name) + ': ended ' + run.actual_state + ' after ' + steps.length + ' recorded steps.';
+  if (opts && opts.focus) {
+    const t = $('#rc-title');
+    if (t) t.focus({ preventScroll: true });
+  }
+}
+
+function selectRun(name, opts) {
+  if (!D.runs.has(name) || !D.trace.has(name)) return;
+  const go = () => { renderTabs(name); renderRun(name, opts); };
+  if (document.startViewTransition && !reduceMotion() && current) document.startViewTransition(go); else go();
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.set('run', name);
+    history.replaceState(null, '', u.pathname + u.search + (opts && opts.scroll ? '#run' : u.hash));
+  } catch (e) { /* history unavailable: the page still works */ }
+  if (opts && opts.scroll) {
+    $('#run').scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+  }
+}
+
+function wireTabs() {
+  $('#tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tab]');
+    if (b) selectRun(b.getAttribute('data-tab'));
+  });
+  $('#tabs').addEventListener('keydown', (e) => {
+    const tabs = Array.from(document.querySelectorAll('#tabs [role="tab"]'));
+    const i = tabs.indexOf(document.activeElement);
+    if (i < 0) return;
+    let j = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') j = (i + 1) % tabs.length;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') j = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = tabs.length - 1;
+    if (j === null) return;
+    e.preventDefault();
+    selectRun(tabs[j].getAttribute('data-tab'));   // renderTabs keeps focus on the tablist
+  });
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-run]');
+    if (!b) return;
+    e.preventDefault();
+    selectRun(b.getAttribute('data-run'), { scroll: true, focus: true });
+  });
+}
+
+function renderProvenance() {
+  const v3 = D.v3;
+  $('#prov').innerHTML =
+    'Recorded eval <b>' + esc(v3.tag) + '</b>, generated ' + esc(v3.generated_at) + '<br>' +
+    'ERP: <b>' + esc(v3.mode) + '</b>, an in-memory ERPNext double<br>' +
+    'Extraction: <b>' + esc((v3.extraction || []).join(', ')) + '</b>, ' + esc(v3.avg_llm_calls) + ' model calls per run<br>' +
+    'Policy: <b>v' + esc(v3.policy_version) + '</b>, retrieval via ' + esc(v3.policy_backend) + '<br>' +
+    'Replayed from <code>traces.json</code>; nothing here is live.';
+}
+
+/* ================================================================
+   §02 Attacks it stops
+   ================================================================ */
+function renderAttacks() {
+  const pool = D.v3.runs.filter((r) => ATTACK_CATS.includes(r.category));
+  const stops = pool.filter((r) => r.should_stop);
+  const stopped = stops.filter((r) => r.did_stop);
+  const allowed = pool.filter((r) => !r.should_stop);
+  const allowedOk = allowed.filter((r) => !r.did_stop);
+  $('#attacks-dek').innerHTML =
+    'Of the ' + D.v3.runs.length + ' scenarios, ' + pool.length + ' sit in the five categories below. ' +
+    '<strong>' + stops.length + ' should stop for a person, and ' + stopped.length + ' did.</strong> ' +
+    'The other ' + allowed.length + ' are twins that should go through, and ' + allowedOk.length +
+    ' did: a control that fires on everything is not a control.';
+
+  const html = ATTACK_CATS.map((cat) => {
+    const runs = pool.filter((r) => r.category === cat);
+    if (!runs.length) return '';
+    const s = runs.filter((r) => r.should_stop);
+    const a = runs.filter((r) => !r.should_stop);
+    const cards = s.map((run) => {
+      const tr = D.trace.get(run.name);
+      const step = tr ? decidingStep(tr) : null;
+      const key = decisiveRules(run, step);
+      const failed = run.passed === false || !run.did_stop;
+      return '<article class="card' + (failed ? ' is-fail' : '') + '">' +
+        '<h4>' + esc(human(run.name)) + '</h4>' +
+        '<blockquote>' + richReason(run.reason) + '</blockquote>' +
+        '<dl>' +
+          '<dt>Control</dt><dd>' + (step ? esc(CONTROL[step.node] || step.node) + ' <code>' + esc(step.node) + '</code>' : '—') + '</dd>' +
+          '<dt>Rule</dt><dd><div class="chips">' + chipList(run.rules_cited, key) + '</div></dd>' +
+          '<dt>End state</dt><dd>' + stateBadge(run.actual_state, failed) + '</dd>' +
+        '</dl>' +
+        (tr ? '<button type="button" class="link-btn" data-run="' + esc(run.name) + '">Show this run, node by node</button>' : '') +
+      '</article>';
+    }).join('');
+    const twins = a.length ? '<ul class="allowed">' + a.map((run) =>
+      '<li><span class="al-k">' + (run.did_stop ? 'stopped, but should not have' : 'allowed, as it should be') + '</span>' +
+      '<button type="button" class="link-btn" data-run="' + esc(run.name) + '">' + esc(human(run.name)) + '</button>' +
+      stateBadge(run.actual_state, run.passed === false || run.did_stop) +
+      '<span class="chips">' + chipList(run.rules_cited) + '</span></li>').join('') + '</ul>' : '';
+    const note = CAT_NOTE[cat] ? '<p class="cat-note">' + esc(CAT_NOTE[cat]) + '</p>' : '';
+    return '<section class="cat" aria-label="' + esc(cat) + '">' +
+      '<div class="cat-head"><h3>' + esc(cat) + '</h3><p class="cat-count">' +
+        s.filter((r) => r.did_stop).length + ' of ' + s.length + ' stopped' +
+        (a.length ? ' · ' + a.filter((r) => !r.did_stop).length + ' of ' + a.length + ' allowed' : '') + '</p></div>' +
+      note + '<div class="cards">' + cards + '</div>' + twins + '</section>';
+  }).join('');
+  $('#attack-groups').innerHTML = html +
+    '<p class="legend"><span><span class="chip chip-key">R12</span> the rule the stopping step names</span>' +
+    '<span><span class="chip">R1</span> also cited by the run</span></p>';
+}
+
+/* ================================================================
+   §03 Approval receipt
+   ================================================================ */
+function parseChange(text) {
+  const m = /^(.*?)\s+('[^']*'|\S+)\s+became\s+('[^']*'|\S+)$/.exec(text.trim());
+  if (!m) return { raw: text };
+  const subject = m[1];
+  const parts = subject.split(/\s+/);
+  const looksLikeCode = parts.length > 1 && /^[A-Z0-9][A-Z0-9-]+$/.test(parts[0]);
+  return {
+    item: looksLikeCode ? parts[0] : '',
+    field: looksLikeCode ? parts.slice(1).join(' ') : subject,
+    from: m[2].replace(/^'|'$/g, ''), to: m[3].replace(/^'|'$/g, '')
+  };
+}
+
+function renderReceipt() {
+  const host = $('#receipt');
+  const run = D.runs.get(RECEIPT_RUN), tr = D.trace.get(RECEIPT_RUN);
+  if (!run) { host.innerHTML = '<p class="small">The run <code>' + esc(RECEIPT_RUN) + '</code> is not in this record.</p>'; return; }
+  const m = /^Purchase Order (\S+) changed after it was approved \((.*)\); (.*)$/.exec(run.reason || '');
+  if (!m) {
+    host.innerHTML = '<blockquote class="rc-reason">' + richReason(run.reason) + '</blockquote>';
+    return;
+  }
+  const po = m[1], changes = m[2].split('; ').map(parseChange), verdict = m[3];
+  const steps = tr ? tr.steps : [];
+  const paused = steps.find((s) => s.node === 'approval_gate' && s.outcome === 'paused');
+  const approved = steps.find((s) => s.node === 'approval_gate' && s.outcome === 'approved');
+  const submit = steps.find((s) => s.node === 'submit_purchase_order');
+  const verifyCall = submit ? (submit.tool_calls || []).find((c) => c.name === 'verify_approved_order') : null;
+  const dg = (t) => { const x = /digest ([0-9a-f]+)/.exec(t || ''); return x ? x[1] : ''; };
+  const approvedDigest = dg(paused && paused.detail);
+  const storedDigest = dg(verifyCall && verifyCall.result);
+  const approverId = approved ? String(approved.detail || '').split(':')[0].trim() : '';
+  const approver = (D.policy.approvers || []).find((a) => a.id === approverId);
+  const valueMatch = /for ([\d,]+\.\d{2})/.exec((paused && paused.detail) || '');
+  const first = changes.find((c) => c.from !== undefined);
+
+  const rows = [];
+  rows.push(['Purchase Order', po]);
+  if (valueMatch) rows.push(['Value when approval was requested', '₹ ' + valueMatch[1]]);
+  if (approvedDigest) rows.push(['Digest the approver saw', approvedDigest]);
+  if (approver) rows.push(['Approved by', approver.id + ' · ' + approver.name + ', ' + approver.role]);
+  else if (approverId) rows.push(['Approved by', approverId]);
+  if (approver) rows.push(['Their limit (R12)', inr(approver.limit_paise)]);
+  if (storedDigest) rows.push(['Digest read back before submit', storedDigest]);
+
+  const diffLines = changes.map((c) => c.from === undefined
+    ? '<div class="diff-l plus"><span aria-hidden="true">~</span><span>' + esc(c.raw) + '</span><span></span></div>'
+    : '<div class="diff-l minus"><span aria-hidden="true">−</span><span>' + esc((c.item ? c.item + ' ' : '') + c.field) + '</span><b>' + esc(c.from) + '</b></div>' +
+      '<div class="diff-l plus"><span aria-hidden="true">+</span><span>' + esc((c.item ? c.item + ' ' : '') + c.field) + '</span><b>' + esc(c.to) + '</b></div>'
+  ).join('');
+
+  const digestsDiffer = approvedDigest && storedDigest && approvedDigest !== storedDigest;
+  const keyRules = tr ? decisiveRules(run, decidingStep(tr)) : [];
+  host.innerHTML =
+    '<div class="receipt-wrap">' +
+      '<div class="receipt" role="group" aria-label="Approval receipt for ' + esc(po) + '">' +
+        '<p class="rcpt-title">Approval receipt</p>' +
+        rows.map(([k, v]) => '<div class="rcpt-row"><span>' + esc(k) + '</span><span>' + esc(v) + '</span></div>').join('') +
+        (digestsDiffer ? '<div class="rcpt-row"><span>Digests</span><span>' + esc(approvedDigest) + ' ≠ ' + esc(storedDigest) + '</span></div>' : '') +
+        '<div class="diff"><p class="diff-h">changed while it waited</p>' + diffLines + '</div>' +
+        '<div class="rcpt-row"><span>Outcome</span><span>' + stateBadge(run.actual_state, run.passed === false) + '</span></div>' +
+        '<div class="rcpt-row"><span>Rules</span><span><span class="chips" style="justify-content:flex-end">' + chipList(run.rules_cited, keyRules) + '</span></span></div>' +
+        '<p class="verdict">Not submitted: ' + rich(verdict) + '.</p>' +
+      '</div>' +
+      '<div>' +
+        (first
+          ? '<p class="plain-diff">' + esc(first.field.charAt(0).toUpperCase() + first.field.slice(1)) + ' <span class="from">' + esc(first.from) + '</span> became <span class="to">' + esc(first.to) + '</span>.</p>'
+          : '') +
+        '<p class="receipt-say">The order was approved as shown, then edited in the ERP while it waited. The approval covered the order the approver saw, so the edited order was not submitted. ' +
+        'The run is <code>' + esc(RECEIPT_RUN) + '</code>.</p>' +
+        '<p style="margin-top:14px"><button type="button" class="link-btn" data-run="' + esc(RECEIPT_RUN) + '">Show this run, node by node</button></p>' +
+      '</div>' +
+    '</div>';
+}
+
+/* ================================================================
+   §04 Numbers
+   ================================================================ */
+function renderNumbers() {
+  const v3 = D.v3, label = esc(corpusLabel());
+  const ftFail = v3.false_touchless > 0, invFail = v3.invariant_violations > 0, passFail = v3.passed < v3.scenarios;
+  $('#metrics').innerHTML =
+    '<article class="metric lead">' +
+      '<h3>False-touchless</h3>' +
+      '<p><span class="fig' + (ftFail ? ' is-fail' : '') + '">' + esc(v3.false_touchless) + '</span> <span class="fig-of">of ' + esc(v3.should_stop) + ' that should stop</span></p>' +
+      '<p class="def">Runs that should have stopped for a person and went through without one. Derived from each scenario’s expected state.</p>' +
+      '<p class="corpus">' + label + '</p>' +
+    '</article>' +
+    '<article class="metric">' +
+      '<h3>Pass rate</h3>' +
+      '<p class="fig' + (passFail ? ' is-fail' : '') + '">' + esc(pct(v3.success_rate)) + '</p>' +
+      '<p class="def">' + esc(v3.passed) + ' of ' + esc(v3.scenarios) + ' scenarios ended in the state, rules and exceptions they expect.</p>' +
+      '<p class="corpus">' + label + '</p>' +
+    '</article>' +
+    '<article class="metric">' +
+      '<h3>Invariant violations</h3>' +
+      '<p class="fig' + (invFail ? ' is-fail' : '') + '">' + esc(v3.invariant_violations) + '</p>' +
+      '<p class="def">Checked on every trace: no submit without an approved gate, no write after a stop, no write in a dry run, no rule the policy lacks.</p>' +
+      '<p class="corpus">' + label + '</p>' +
+    '</article>' +
+    '<article class="metric">' +
+      '<h3>Wall time per scenario</h3>' +
+      '<div class="num-pair">' +
+        '<p class="fig">' + esc(v3.p50_ms) + '<span class="fig-unit">ms</span><small>p50</small></p>' +
+        '<p class="fig">' + esc(v3.p95_ms) + '<span class="fig-unit">ms</span><small>p95</small></p>' +
+      '</div>' +
+      '<p class="def">Against the in-memory double. It says nothing about a live ERPNext.</p>' +
+      '<p class="corpus">' + label + '</p>' +
+    '</article>';
+
+  const t = v3.touch_table || {};
+  $('#touch').innerHTML =
+    '<table class="touch"><caption>' + label + '</caption>' +
+    '<thead><tr><td></td><th scope="col">Stopped for a person</th><th scope="col">Went through</th></tr></thead><tbody>' +
+    '<tr><th scope="row">Should stop</th><td>' + esc(t.should_stop_did_stop) + '</td>' +
+      '<td class="miss' + (t.should_stop_did_not > 0 ? ' is-fail' : '') + '">' + esc(t.should_stop_did_not) + '<small>false-touchless</small></td></tr>' +
+    '<tr><th scope="row">Should go through</th><td class="miss' + (t.should_pass_did_stop > 0 ? ' is-fail' : '') + '">' + esc(t.should_pass_did_stop) + '<small>false stop</small></td>' +
+      '<td>' + esc(t.should_pass_did_pass) + '</td></tr>' +
+    '</tbody></table>';
+
+  const squares = (res) => {
+    const pass = res.runs.filter((r) => r.passed).length, fail = res.runs.length - pass;
+    return '<div class="squares" role="img" aria-label="' + pass + ' passed' + (fail ? ', ' + fail + ' failed' : '') + '">' +
+      res.runs.map((r) => '<i' + (r.passed ? '' : ' class="f"') + ' title="' + esc(r.name + (r.passed ? '' : ' (failed)')) + '"></i>').join('') + '</div>';
+  };
+  const v1 = D.v1, v2 = D.v2;
+  const v1fail = v1.runs.filter((r) => !r.passed).map((r) => r.name);
+  $('#versions').innerHTML =
+    '<li class="ver"><p class="ver-tag">' + esc(v1.tag) + ' <span>· ' + esc(v1.generated_at) + '</span></p>' +
+      '<p class="ver-fig">' + esc(pct(v1.success_rate)) + '</p>' +
+      '<p class="ver-sub">' + esc(v1.passed) + ' of ' + esc(v1.scenarios) + ' passed</p>' + squares(v1) +
+      '<p class="ver-say">The first run caught real bugs in the approval gate, including a fix that compared bound methods with <code>is</code> and silently did nothing, and scenarios that were themselves wrong.</p>' +
+      (v1fail.length ? '<p class="ver-fail"><b>failed:</b> ' + v1fail.map(esc).join(', ') + '</p>' : '') +
+    '</li>' +
+    '<li class="ver"><p class="ver-tag">' + esc(v2.tag) + ' <span>· ' + esc(v2.generated_at) + '</span></p>' +
+      '<p class="ver-fig">' + esc(pct(v2.success_rate)) + '</p>' +
+      '<p class="ver-sub">' + esc(v2.passed) + ' of ' + esc(v2.scenarios) + ' passed</p>' + squares(v2) +
+      '<p class="ver-say">The gate was fixed and the wrong scenarios corrected; a retry scenario the in-memory double cannot exercise became unit tests against the real client.</p>' +
+    '</li>' +
+    '<li class="ver"><p class="ver-tag">' + esc(v3.tag) + ' <span>· ' + esc(v3.generated_at) + '</span></p>' +
+      '<p class="ver-fig">' + esc(v3.scenarios) + ' scenarios</p>' +
+      '<p class="ver-sub">' + esc(v3.passed) + ' of ' + esc(v3.scenarios) + ' passed · ' + esc(v3.false_touchless) + ' false-touchless</p>' + squares(v3) +
+      '<p class="ver-say">At 100% the suite could no longer fail, so v3 adds trace invariants, the should-stop table, paisa boundaries and a frozen baseline, alongside scenarios for each new control.</p>' +
+    '</li>';
+}
+
+/* ================================================================
+   §05 Policy
+   ================================================================ */
+function renderPolicy() {
+  const p = D.policy, v3 = D.v3, total = v3.runs.length;
+  const same = p.sha256 && v3.policy_sha256 && p.sha256 === v3.policy_sha256;
+  $('#pol-meta').innerHTML =
+    '<span><code>' + esc(p.source) + '</code> · version <b>' + esc(p.version) + '</b> · ' + p.rules.length + ' rules</span>' +
+    (same
+      ? '<span><span aria-hidden="true">✓ </span>sha256 <code>' + esc(p.sha256.slice(0, 12)) + '</code> is the policy the v3 eval ran under</span>'
+      : '<span style="color:var(--red)">! sha256 <code>' + esc(String(p.sha256).slice(0, 12)) + '</code> differs from the eval’s <code>' + esc(String(v3.policy_sha256).slice(0, 12)) + '</code></span>');
+  const citing = new Map();
+  for (const r of v3.runs) for (const id of uniq(r.rules_cited || [])) {
+    if (!citing.has(id)) citing.set(id, []);
+    citing.get(id).push(r.name);
+  }
+  $('#rules').innerHTML = p.rules.map((rule) => {
+    const names = citing.get(rule.id) || [];
+    let extra = '';
+    if (!names.length) {
+      const re = new RegExp('\\b' + rule.id + '\\b');
+      const named = v3.runs.filter((r) => { const t = D.trace.get(r.name); return t && t.steps.some((s) => re.test(s.detail || '')); });
+      extra = '<p class="small">In no run’s recorded rules' + (named.length ? '; named in the step detail of ' + named.length + ' run' + (named.length === 1 ? '' : 's') : '') + '.</p>';
+    }
+    const w = total ? (names.length / total) * 100 : 0;
+    return '<li class="rule">' +
+      '<span class="rule-id">' + esc(rule.id) + '</span>' +
+      '<div><h3>' + esc(rule.title) + '</h3><p class="rule-effect">' + md(rule.effect) + '</p></div>' +
+      '<dl class="rule-th"><dt>Threshold</dt><dd>' + md(rule.threshold || '—') + '</dd>' +
+        (rule.on_breach ? '<dt>On breach</dt><dd>' + md(rule.on_breach) + '</dd>' : '') + '</dl>' +
+      '<div class="cite"><span class="cite-n">' + names.length + '</span> <span class="small">of ' + total + ' scenarios cite it</span>' +
+        '<div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(2) + '%"></i></div>' + extra +
+        (names.length ? '<details><summary>Which scenarios</summary><ul>' +
+          names.map((n) => '<li><button type="button" class="link-btn" data-run="' + esc(n) + '">' + esc(n) + '</button></li>').join('') +
+          '</ul></details>' : '') +
+      '</div></li>';
   }).join('');
 }
 
-function rows(v2, traces){
-  const tb = $('#rows');
-  const cats = ['all', ...Object.keys(v2.by_category).sort()];
-  $('#filters').innerHTML = cats.map((c,i)=>
-    `<button class="chip" data-cat="${esc(c)}" aria-pressed="${i===0}">${esc(c)}</button>`).join('');
-
-  const render = (cat) => {
-    tb.innerHTML = v2.runs.filter(r=>cat==='all'||r.category===cat).map((r,i)=>{
-      const cls = STATE_CLASS[r.actual_state] || 'p-blue';
-      const rules = (r.rules_cited||[]).map(x=>`<span class="rule">${esc(x)}</span>`).join('') || '<span style="color:var(--mut)">—</span>';
-      const exc = (r.exceptions||[]).join(', ') || '<span style="color:var(--mut)">—</span>';
-      return `<tr data-i="${i}" aria-expanded="false" tabindex="0">
-          <td><b>${esc(r.name)}</b></td>
-          <td class="hide-sm" style="color:var(--mut)">${esc(r.category)}</td>
-          <td><span class="pill ${cls}">${esc(r.actual_state)}</span></td>
-          <td class="hide-sm">${rules}</td>
-          <td class="hide-sm mono" style="color:var(--warn)">${exc}</td>
-          <td class="mono">${r.ms}</td>
-        </tr>
-        <tr class="detail" hidden><td colspan="6"><div class="trace">${traceFor(r,traces)}</div></td></tr>`;
-    }).join('');
-  };
-  render('all');
-
-  $('#filters').addEventListener('click', e=>{
-    const b = e.target.closest('.chip'); if(!b) return;
-    document.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed', c===b));
-    render(b.dataset.cat);
-  });
-
-  const toggle = tr => {
-    const d = tr.nextElementSibling;
-    const open = tr.getAttribute('aria-expanded')==='true';
-    tr.setAttribute('aria-expanded', String(!open));
-    d.hidden = open;
-  };
-  tb.addEventListener('click', e=>{ const tr=e.target.closest('tr[data-i]'); if(tr) toggle(tr); });
-  tb.addEventListener('keydown', e=>{
-    if(e.key!=='Enter' && e.key!==' ') return;
-    const tr=e.target.closest('tr[data-i]'); if(tr){ e.preventDefault(); toggle(tr); }
-  });
+/* ================================================================
+   §06 Exceptions ledger
+   ================================================================ */
+function renderLedger() {
+  const v3 = D.v3;
+  const rows = v3.runs.filter((r) => (r.exceptions || []).length);
+  let held = 0, blocked = 0;
+  const body = rows.map((run) => {
+    const tr = D.trace.get(run.name);
+    const steps = tr ? tr.steps : [];
+    const match = steps.find((s) => s.node === 'three_way_match');
+    const inv = steps.find((s) => s.node === 'create_purchase_invoice');
+    const raised = uniq([].concat(match ? match.rules_cited || [] : [], inv ? inv.rules_cited || [] : [], inv ? rulesIn(inv.detail) : []));
+    let erp = '—';
+    if (inv && inv.outcome === 'blocked') { erp = 'blocked; no invoice written'; blocked++; }
+    else if (inv && /placed on hold/i.test(inv.detail || '')) {
+      const doc = (inv.erp_docs || [])[0] || '';
+      erp = 'held' + (doc ? ': <code class="t-doc">' + esc(doc) + '</code>' : ''); held++;
+    }
+    return '<tr>' +
+      '<td class="sc" data-label="Scenario"><span><button type="button" class="link-btn" data-run="' + esc(run.name) + '">' + esc(run.name) + '</button>' +
+        '<small>' + esc(run.category) + '</small></span></td>' +
+      '<td data-label="Exceptions"><span class="chips">' + run.exceptions.map((x) => '<span class="chip chip-exc">' + esc(x) + '</span>').join('') + '</span></td>' +
+      '<td data-label="Rules"><span class="chips">' + chipList(uniq(run.rules_cited.concat(raised)), raised) + '</span></td>' +
+      '<td data-label="In ERPNext"><span>' + erp + '</span></td>' +
+      '<td data-label="End state"><span>' + stateBadge(run.actual_state, run.passed === false) + '</span></td>' +
+    '</tr>';
+  }).join('');
+  $('#ledger-meta').innerHTML =
+    '<span><b>' + rows.length + '</b> runs with exceptions</span>' +
+    '<span><b>' + held + '</b> invoices held in the ERP double</span>' +
+    '<span><b>' + blocked + '</b> invoices blocked before writing</span>' +
+    '<span>exception detection <b>' + esc(pct(v3.exception_detection_rate)) + '</b> of ' + esc(v3.exception_scenarios) + ' exception scenarios</span>' +
+    '<span class="small">' + esc(corpusLabel()) + '</span>';
+  $('#ledger').innerHTML =
+    '<table class="ledger"><caption class="sr">Runs with exceptions, their exception types, rules and end state</caption>' +
+    '<thead><tr><th scope="col">Scenario</th><th scope="col">Exceptions</th><th scope="col">Rules</th><th scope="col">In ERPNext</th><th scope="col">End state</th></tr></thead>' +
+    '<tbody>' + body + '</tbody></table>' +
+    '<p class="legend"><span><span class="chip chip-key">R11</span> raised at the match or invoice step</span><span><span class="chip">R1</span> also cited by the run</span></p>';
 }
 
-const RULES = [
-  ['R1','PO approval','Above ₹50,000 a person signs. Below it, the agent records R1 as the rule that permitted the release.'],
-  ['R2','Preferred suppliers','Proposes a substitution and records it. Never substitutes silently.'],
-  ['R3','Price variance','5% or ₹500, whichever is tighter — so the rule behaves at both ends of the catalogue.'],
-  ['R4','Quantity variance','2% or 1 unit, whichever is greater — small-count variance is packaging, not commerce.'],
-  ['R5','Duplicate invoice','Case and punctuation removed, so INV-0042 and inv 0042 are one invoice. Never automatic.'],
-  ['R6','Unknown supplier','Escalates. The agent cannot create a supplier: that is the control point for bank details.'],
-  ['R7','Expedite','Under two days raises a flag and does not block. Line-stops must not meet friction.'],
-  ['R8','Never automatic','The list that no other rule can override — authority, not arithmetic.'],
-  ['R9','Missing receipt','Held, not rejected. The goods are in our building and the paperwork is ours.'],
-  ['R10','Run ceiling','Above ₹5,00,000 stops even with approval. Bounds what a bug can do, not just a decision.'],
-];
-
-function rules(){
-  $('#rules').innerHTML = RULES.map(([id,t,p])=>
-    `<div class="rl"><div class="id">${id}</div><h4>${esc(t)}</h4><p>${esc(p)}</p></div>`).join('');
+/* ================================================================
+   §07 Limits
+   ================================================================ */
+function renderLimits() {
+  const v3 = D.v3;
+  const untrusted = v3.runs.filter((r) => r.category === 'untrusted input').length;
+  const items = [
+    ['Not a live ERPNext run.', 'Every result here was produced against ' + v3.mode + ', an in-memory double that reproduces naming series, server-side totals and the draft/submit lifecycle. The live run has not happened yet.'],
+    ['Not model extraction.', 'Extraction ran the deterministic ' + (v3.extraction || []).join(', ') + ' parser, ' + v3.avg_llm_calls + ' model calls per run. No claim is made about model accuracy.'],
+    ['Not a claim of immunity.', untrusted + ' synthetic documents carrying hidden or addressed text, or a bank-detail change, were stopped. That is what was tested.'],
+    ['Not real documents.', 'Synthetic requests and quotes, one company, INR only, one buying price list.']
+  ];
+  $('#limits-list').innerHTML = items.map(([h, t]) => '<li><b>' + esc(h) + '</b><span>' + esc(t) + '</span></li>').join('');
 }
 
-function reveal(){
-  const io = new IntersectionObserver(es=>es.forEach(e=>{
-    if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
-  }),{rootMargin:'0px 0px -8% 0px'});
-  document.querySelectorAll('section, .stats, .bug').forEach(el=>{
-    el.classList.add('reveal'); io.observe(el);
+/* ================================================================
+   Theme, nav position
+   ================================================================ */
+function wireTheme() {
+  const btn = $('#theme-btn'), root = document.documentElement;
+  const systemDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const effective = () => root.getAttribute('data-theme') || (systemDark() ? 'dark' : 'light');
+  const label = () => btn.setAttribute('aria-label', 'Switch to ' + (effective() === 'dark' ? 'light' : 'dark') + ' theme');
+  try { const saved = localStorage.getItem('pf-theme'); if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved); } catch (e) { /* storage blocked */ }
+  label();
+  btn.addEventListener('click', () => {
+    const next = effective() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('pf-theme', next); } catch (e) { /* storage blocked */ }
+    label();
   });
 }
+function wireNav() {
+  if (!('IntersectionObserver' in window)) return;
+  const links = new Map(Array.from(document.querySelectorAll('.nav a')).map((a) => [a.getAttribute('href').slice(1), a]));
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (!en.isIntersecting) return;
+      links.forEach((a) => a.removeAttribute('aria-current'));
+      const a = links.get(en.target.id);
+      if (a) a.setAttribute('aria-current', 'true');
+    });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  links.forEach((_, id) => { const el = document.getElementById(id); if (el) io.observe(el); });
+}
 
-(async ()=>{
-  try{
-    const [v1,v2,traces] = await Promise.all([
-      load('results-v1.json'), load('results-v2.json'), load('traces.json')
-    ]);
-    stats(v2); compare(v1,v2); rows(v2,traces); rules(); reveal();
-  }catch(err){
-    document.querySelector('main').insertAdjacentHTML('afterbegin',
-      `<div class="note" style="border-left-color:var(--bad)">
-        <b>Could not load the evaluation data.</b> This page reads
-        <span class="mono">results-v1.json</span>, <span class="mono">results-v2.json</span>
-        and <span class="mono">traces.json</span> from the same folder. Serve it over
-        HTTP (<span class="mono">python -m http.server</span>) rather than opening the
-        file directly — <span class="mono">fetch</span> is blocked on
-        <span class="mono">file://</span>. (${esc(err.message)})
-      </div>`);
+/* ================================================================
+   Boot
+   ================================================================ */
+function fail(err) {
+  const fileUrl = window.location.protocol === 'file:';
+  $('#prov').textContent = 'The record did not load.';
+  $('#load-notice').innerHTML = '<div class="notice"><p><b>The eval record could not be loaded.</b> ' + esc(err && err.message ? err.message : String(err)) + '</p>' +
+    '<p style="margin-top:8px">' + (fileUrl ? 'Browsers block <code>fetch</code> on <code>file://</code>. ' : '') +
+    'Serve the folder from the repository root with <code>python -m http.server 8123 --directory dashboard</code>, ' +
+    'and regenerate the data with <code>.venv\\Scripts\\python.exe -I dashboard\\build_data.py</code> if a file is missing.</p></div>';
+  document.querySelectorAll('.loading').forEach((el) => { el.textContent = 'Not loaded.'; });
+}
+
+async function boot() {
+  wireTheme();
+  wireNav();
+  try {
+    D = await load();
+  } catch (err) {
+    fail(err);
+    return;
   }
+  renderProvenance();
+  wireTabs();
+  let start = null;
+  try { start = new URL(window.location.href).searchParams.get('run'); } catch (e) { start = null; }
+  const first = (start && D.runs.has(start) && D.trace.has(start)) ? start : (featuredList()[0] || [D.v3.runs[0].name])[0];
+  renderTabs(first);
+  renderRun(first);
+  const sections = [renderAttacks, renderReceipt, renderNumbers, renderPolicy, renderLedger, renderLimits];
+  for (const fn of sections) {
+    try { fn(); } catch (err) { console.error(fn.name, err); }
+  }
+}
+
+boot();
 })();
 </script>
 </body>

@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Mr-Bathwal/ERP/actions/workflows/ci.yml/badge.svg)](https://github.com/Mr-Bathwal/ERP/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-1f2328)
-![Tests](https://img.shields.io/badge/tests-229%20offline-1a7f37)
+![Tests](https://img.shields.io/badge/tests-239%20offline-1a7f37)
 ![Eval](https://img.shields.io/badge/eval-48%20scenarios%20·%20fake%20ERP-1a7f37)
 
 Drop in a purchase-request email or a supplier quote PDF. ProcureFlow reads
@@ -52,8 +52,8 @@ result yet; see [Honest limits](#honest-limits).
 | Task success | 79.2% (19/24) | 100% (23/23) | **100% (48/48)** |
 | **False-touchless** (should have stopped for a person, did not) | n/a | n/a | **0 of 33** |
 | Trace-invariant violations | n/a | n/a | **0** |
-| Offline tests | 80 | 80 | **229** |
-| Latency p50 / p95 | 314 / 563 ms | 180 / 232 ms | 196 / 280 ms |
+| Offline tests | 80 | 80 | **239** |
+| Latency p50 / p95 | 314 / 563 ms | 180 / 232 ms | 172 / 217 ms |
 
 Records: [`results-v1`](eval/results/results-v1.md) ·
 [`results-v2`](eval/results/results-v2.md) ·
@@ -202,7 +202,7 @@ behaviours, not tested claims.
 
 ```bash
 make setup           # venv + dependencies
-make test            # 229 offline tests, no ERP, no keys
+make test            # 239 offline tests, no ERP, no keys
 make eval            # 48 scenarios, diffed against the frozen baseline
 python -m procureflow.cli run seed/samples/req-happy.txt
 ```
