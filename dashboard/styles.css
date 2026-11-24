@@ -987,6 +987,90 @@ section[id] { scroll-margin-top: 72px; }
 .receipt-say { margin-top: 20px; font-size: 16.5px; max-width: 46ch; color: var(--muted); }
 .receipt-say strong { color: var(--text); }
 
+/* ---- §03 as a pinned act ----------------------------------------
+   The one sequence on this page that is a story rather than a table:
+   approved, edited, read back, void. It is pinned and scrubbed, so
+   the visitor advances it at their own pace and can stop on any beat.
+   Nothing here is new copy -- every line animated is a line the
+   renderer already wrote from the run's own trace. */
+/* While pinned the whole card has to sit above the fold, so the act
+   runs denser than the rest of the page. Measured on a 768px-tall
+   viewport, where the card overflowed by 247px before this block. */
+.is-act .receipt-wrap { align-items: start; min-height: 0; }
+.is-act .sec-head { padding-top: 12px; margin-bottom: 12px; }
+.is-act .sec-head h2 { font-size: clamp(24px, 2.8vw, 34px); }
+.is-act .sec-head .dek { font-size: 14px; padding-top: 18px; }
+.is-act .receipt { font-size: 12px; padding: 16px 18px 14px; }
+.is-act .rcpt-row { padding: 4px 0; }
+.is-act .diff { margin: 10px 0; }
+.is-act .diff-l { padding: 4px 10px; }
+.is-act .diff-h { padding: 5px 10px; }
+.is-act .verdict { font-size: 13px; margin-top: 10px; }
+.is-act .plain-diff { font-size: clamp(26px, 3.6vw, 44px); }
+.is-act .receipt-say { font-size: 15px; margin-top: 16px; }
+
+.beats {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 22px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  flex-wrap: wrap;
+}
+.beats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.4;
+  transition: opacity 0.35s var(--ease), color 0.35s var(--ease);
+}
+.beats span::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.beats span.on { opacity: 1; color: var(--text); }
+.beats span.on:last-child { color: var(--red); }
+
+.stamp {
+  position: absolute;
+  right: 18px;
+  top: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 7px 11px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  transform: rotate(-4deg);
+  pointer-events: none;
+}
+.stamp-ok { color: var(--jade); background: var(--jade-dim); }
+.stamp-void {
+  color: var(--red);
+  background: var(--red-dim);
+  right: 16px;
+  top: 14px;
+  font-size: 13px;
+  padding: 9px 14px;
+  transform: rotate(-7deg);
+  box-shadow: 0 0 40px -12px var(--red);
+}
+.rcpt-row.hot span:last-child { color: var(--red); }
+.rcpt-row.hot span:first-child { color: var(--red); opacity: 0.8; }
+
+@media (max-width: 980px) {
+  .is-act .receipt-wrap { min-height: 0; }
+  .stamp { position: static; display: inline-block; margin-bottom: 12px; transform: none; }
+  .stamp-void { transform: none; }
+}
+
 /* ---- numbers ----------------------------------------------------- */
 .metrics {
   display: grid;

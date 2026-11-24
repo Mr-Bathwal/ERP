@@ -41,6 +41,10 @@
       smoothWheel: true,
       touchMultiplier: 1.6,
     });
+    // Exposed so the scroll position can be driven from the console
+    // (and from the browser checks that verify the pinned sequence);
+    // nothing on the page reads it.
+    window.__lenis = lenis;
     if (hasGsap) {
       lenis.on('scroll', ST.update);
       gsap.ticker.add((time) => lenis.raf(time * 1000));
@@ -273,6 +277,140 @@
     onScroll();
   }
 
+  /* ---- §03: the approval, pinned and played ----------------------
+     Four beats: approved, edited while it waited, read back, void.
+     Every element moved here was rendered from the run's own trace,
+     and the two stamps take their words from rows already on screen,
+     so the sequence cannot say anything the record does not. */
+  function wireApprovalAct() {
+    if (reduced || !hasGsap) return;
+    // Pinning costs the visitor three screens of scroll and needs the
+    // whole card to fit above the fold. On a phone it does neither, so
+    // the section stays the plain document it already reads as.
+    // 760px is measured, not guessed: at 768 the finished card ends
+    // one pixel above the fold, and below that it would be cropped.
+    if (!window.matchMedia('(min-width: 981px) and (min-height: 760px)').matches) return;
+    const sec = $('#approval');
+    const wrap = sec && sec.querySelector('.wrap');
+    const rcpt = sec && sec.querySelector('.receipt');
+    if (!sec || !wrap || !rcpt || rcpt.dataset.act) return;
+
+    const row = (k) => rcpt.querySelector('[data-row="' + k + '"]');
+    const diff = rcpt.querySelector('.diff');
+    const stored = row('digest-stored');
+    const approved = row('approver');
+    // Without the digest pair there is no sequence to play; leave the
+    // section as the plain document it already is.
+    if (!diff || !stored || !row('digest-approved')) return;
+    rcpt.dataset.act = '1';
+
+    const opening = ['po', 'value', 'digest-approved', 'approver', 'limit'].map(row).filter(Boolean);
+    const closing = ['digests', 'outcome', 'rules'].map(row).filter(Boolean);
+    const verdict = rcpt.querySelector('.verdict');
+    const plain = sec.querySelector('.plain-diff');
+    const say = sec.querySelector('.receipt-say');
+    const diffLines = $$('.diff-l', diff);
+
+    // The stamps: approved takes the approver's id from the row that
+    // names them; void takes its rule ids from the chips already there.
+    const who = approved ? (approved.lastElementChild.textContent.split('·')[0] || '').trim() : '';
+    const ruleIds = $$('[data-row="rules"] .chip', rcpt).map((c) => c.textContent.trim()).join(' ');
+    rcpt.style.position = 'relative';
+    const okStamp = document.createElement('p');
+    okStamp.className = 'stamp stamp-ok';
+    okStamp.textContent = who ? 'Approved · ' + who : 'Approved';
+    const voidStamp = document.createElement('p');
+    voidStamp.className = 'stamp stamp-void';
+    voidStamp.textContent = ruleIds ? 'Approval void · ' + ruleIds : 'Approval void';
+    rcpt.appendChild(okStamp);
+    rcpt.appendChild(voidStamp);
+
+    // A beat counter, so a pinned section says where you are in it.
+    const beats = document.createElement('p');
+    beats.className = 'beats';
+    beats.setAttribute('aria-hidden', 'true');
+    beats.innerHTML = ['Approved', 'Edited while it waited', 'Read back', 'Void']
+      .map((b, i) => '<span>' + String(i + 1).padStart(2, '0') + ' ' + b + '</span>').join('');
+    const col = sec.querySelector('.receipt-wrap > div:last-child');
+    if (col) col.insertBefore(beats, col.firstChild);
+    const beatEls = $$('span', beats);
+    const setBeat = (n) => beatEls.forEach((b, i) => b.classList.toggle('on', i <= n));
+
+    // The digest arrives a character at a time, left to right. The
+    // first instinct was to churn random hex and settle on the real
+    // value, which looks better and is a lie: stop scrolling half way
+    // and the page is showing a hash the ERP never returned. What is
+    // on screen is always a true prefix of the real digest; the rest
+    // is dots, which claim nothing.
+    const digestCell = stored.lastElementChild;
+    const finalDigest = digestCell.textContent;
+    const typeOut = (p) => {
+      const n = finalDigest.length;
+      const shown = Math.round(n * Math.max(0, Math.min(1, p)));
+      digestCell.textContent = finalDigest.slice(0, shown) + '·'.repeat(n - shown);
+    };
+
+    try {
+      // The opening rows and the approved stamp are *not* hidden. The
+      // order really was approved, and a pinned section whose first
+      // frame is an empty card looks broken rather than cinematic.
+      gsap.set([].concat(closing, diffLines, [diff, stored, verdict, plain, say, voidStamp])
+        .filter(Boolean), { autoAlpha: 0 });
+      gsap.set(diff, { height: 0, overflow: 'hidden' });
+      gsap.set(voidStamp, { scale: 1.5 });
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: sec,
+          start: 'top top+=64',
+          end: '+=320%',
+          pin: wrap,
+          pinSpacing: true,
+          scrub: 0.8,
+          anticipatePin: 1,
+          onUpdate(self) { setBeat(Math.min(3, Math.floor(self.progress * 4))); },
+        },
+      });
+
+      // 01 approved: already on screen; the beat is the reading of it
+      tl.to(opening, { duration: 0.9 }, 0)
+      // 02 edited while it waited
+        .to(diff, { autoAlpha: 1, height: 'auto', duration: 0.5 }, 1.0)
+        .to(diffLines, { autoAlpha: 1, x: 0, duration: 0.3, stagger: 0.16 }, 1.1)
+        .from(diffLines, { x: -14, duration: 0.3, stagger: 0.16 }, 1.1)
+        .to(plain, { autoAlpha: 1, duration: 0.4 }, 1.5)
+      // 03 read back
+        .to(stored, { autoAlpha: 1, duration: 0.3 }, 2.1)
+        .to({ p: 0 }, { p: 1, duration: 0.9, ease: 'none', onUpdate() { typeOut(this.targets()[0].p); },
+          onComplete() { digestCell.textContent = finalDigest; } }, 2.2)
+        .to(row('digests') || {}, { autoAlpha: 1, duration: 0.3 }, 2.9)
+        .add(() => { stored.classList.add('hot'); if (row('digests')) row('digests').classList.add('hot'); }, 2.9)
+      // 04 void
+        .to(okStamp, { autoAlpha: 0.25, duration: 0.3 }, 3.1)
+        .to(voidStamp, { autoAlpha: 1, scale: 1, duration: 0.45, ease: 'back.out(2)' }, 3.2)
+        .to([row('outcome'), row('rules'), verdict].filter(Boolean),
+          { autoAlpha: 1, y: 0, duration: 0.35, stagger: 0.14 }, 3.4)
+        .to(say, { autoAlpha: 1, duration: 0.4 }, 3.7);
+
+      // Scrubbing backwards past the beat must undo it, or the row
+      // stays red while the digests still agree.
+      tl.eventCallback('onUpdate', () => {
+        if (tl.progress() < 0.56) {
+          stored.classList.remove('hot');
+          if (row('digests')) row('digests').classList.remove('hot');
+        }
+      });
+    } catch (e) {
+      // Any failure here must leave the section readable, not half-lit.
+      [].concat(closing, diffLines, [diff, stored, verdict, plain, say]).filter(Boolean)
+        .forEach((el) => { el.style.cssText = ''; });
+      okStamp.remove();
+      voidStamp.remove();
+      return;
+    }
+    sec.classList.add('is-act');
+  }
+
   /* ---- the progress hairline -------------------------------------- */
   function wireProgress() {
     const bar = document.createElement('div');
@@ -336,7 +474,12 @@
     wireTimeline(r);
     wireCards(r);
     fillTicker();
+    wireApprovalAct();
     if (hasGsap) ST.refresh();
+    // A refresh moves everything; anything already at the fold has to
+    // be shown now, because the observer that would have caught it
+    // fired against the old layout.
+    sweep();
   }
 
   function boot() {
@@ -361,6 +504,9 @@
     // the scene and the rest only need a nudge to re-measure.
     const btn = $('#theme-btn');
     if (btn && hasGsap) btn.addEventListener('click', () => setTimeout(() => ST.refresh(), 60));
+
+    if (hasGsap) ST.addEventListener('refresh', sweep);
+    window.addEventListener('resize', () => setTimeout(sweep, 120));
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

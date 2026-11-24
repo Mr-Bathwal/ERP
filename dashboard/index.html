@@ -689,13 +689,13 @@ function renderReceipt() {
   const first = changes.find((c) => c.from !== undefined);
 
   const rows = [];
-  rows.push(['Purchase Order', po]);
-  if (valueMatch) rows.push(['Value when approval was requested', '₹ ' + valueMatch[1]]);
-  if (approvedDigest) rows.push(['Digest the approver saw', approvedDigest]);
-  if (approver) rows.push(['Approved by', approver.id + ' · ' + approver.name + ', ' + approver.role]);
-  else if (approverId) rows.push(['Approved by', approverId]);
-  if (approver) rows.push(['Their limit (R12)', inr(approver.limit_paise)]);
-  if (storedDigest) rows.push(['Digest read back before submit', storedDigest]);
+  rows.push(['po', 'Purchase Order', po]);
+  if (valueMatch) rows.push(['value', 'Value when approval was requested', '₹ ' + valueMatch[1]]);
+  if (approvedDigest) rows.push(['digest-approved', 'Digest the approver saw', approvedDigest]);
+  if (approver) rows.push(['approver', 'Approved by', approver.id + ' · ' + approver.name + ', ' + approver.role]);
+  else if (approverId) rows.push(['approver', 'Approved by', approverId]);
+  if (approver) rows.push(['limit', 'Their limit (R12)', inr(approver.limit_paise)]);
+  if (storedDigest) rows.push(['digest-stored', 'Digest read back before submit', storedDigest]);
 
   const diffLines = changes.map((c) => c.from === undefined
     ? '<div class="diff-l plus"><span aria-hidden="true">~</span><span>' + esc(c.raw) + '</span><span></span></div>'
@@ -709,11 +709,11 @@ function renderReceipt() {
     '<div class="receipt-wrap">' +
       '<div class="receipt" role="group" aria-label="Approval receipt for ' + esc(po) + '">' +
         '<p class="rcpt-title">Approval receipt</p>' +
-        rows.map(([k, v]) => '<div class="rcpt-row"><span>' + esc(k) + '</span><span>' + esc(v) + '</span></div>').join('') +
-        (digestsDiffer ? '<div class="rcpt-row"><span>Digests</span><span>' + esc(approvedDigest) + ' ≠ ' + esc(storedDigest) + '</span></div>' : '') +
+        rows.map(([key, k, v]) => '<div class="rcpt-row" data-row="' + key + '"><span>' + esc(k) + '</span><span>' + esc(v) + '</span></div>').join('') +
+        (digestsDiffer ? '<div class="rcpt-row" data-row="digests"><span>Digests</span><span>' + esc(approvedDigest) + ' ≠ ' + esc(storedDigest) + '</span></div>' : '') +
         '<div class="diff"><p class="diff-h">changed while it waited</p>' + diffLines + '</div>' +
-        '<div class="rcpt-row"><span>Outcome</span><span>' + stateBadge(run.actual_state, run.passed === false) + '</span></div>' +
-        '<div class="rcpt-row"><span>Rules</span><span><span class="chips" style="justify-content:flex-end">' + chipList(run.rules_cited, keyRules) + '</span></span></div>' +
+        '<div class="rcpt-row" data-row="outcome"><span>Outcome</span><span>' + stateBadge(run.actual_state, run.passed === false) + '</span></div>' +
+        '<div class="rcpt-row" data-row="rules"><span>Rules</span><span><span class="chips" style="justify-content:flex-end">' + chipList(run.rules_cited, keyRules) + '</span></span></div>' +
         '<p class="verdict">Not submitted: ' + rich(verdict) + '.</p>' +
       '</div>' +
       '<div>' +
