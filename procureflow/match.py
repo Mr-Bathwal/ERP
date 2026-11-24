@@ -121,6 +121,8 @@ class ExceptionType(str, Enum):
     QTY_OVER = "qty_over"
     DUPLICATE_INVOICE = "duplicate_invoice"
     MISSING_RECEIPT = "missing_receipt"
+    BILLED_OVER_RECEIVED = "billed_over_received"
+    UNORDERED_LINE = "unordered_line"
 
 
 @dataclass(frozen=True)
@@ -286,11 +288,20 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
     `.items`. `receipt` may be None (R9). `duplicate_of`, when given, is the
     already-booked invoice found by `find_duplicate_invoice` (R5).
 
-    Price is checked **invoice against order** — the order is the agreement.
-    Quantity is checked **receipt against order**, never invoice against
-    order, because that is the distinction the whole exercise turns on: a
-    supplier who ships 45 of 60 and invoices for 60 passes an
-    order-to-invoice check perfectly and has overbilled you by a quarter.
+    Three legs, each checked against the document that is authoritative for it:
+
+    - **Price: invoice against order** (R3). The order is the agreement.
+    - **Delivery: receipt against order** (R4). What arrived, against what
+      was asked for.
+    - **Billing: invoice against receipt** (R11). What we are asked to pay
+      for, against what arrived -- plus any invoiced item that was never
+      ordered at all.
+
+    v2 ran only the first two, and so was really two two-way matches. A
+    supplier who ships 45 of 60 and invoices for 60 tripped R4 (`qty_short`,
+    a delivery problem) but nothing said *the invoice itself is wrong*; and
+    a line for an item nobody ordered was skipped without a word, because
+    the loop walked the order's items rather than the invoice's.
     """
     tol = tol or Tolerances()
     res = MatchResult(
@@ -380,6 +391,54 @@ def three_way_match(po: Any, receipt: Any, invoice: Any, *,
                        "ends of the catalogue.",
             ))
             res.rules_cited.append("R3")
+
+        # R11, first half: an invoiced item that is not on the order at all.
+        # Walking the invoice's items, not the order's, is the whole fix.
+        for code, inv in inv_items.items():
+            if code in po_items:
+                continue
+            res.exceptions.append(MatchException(
+                type=ExceptionType.UNORDERED_LINE, rule_id="R11", item_code=code,
+                po_name=res.po_name, invoice_name=res.invoice_name,
+                expected="not on the purchase order", actual=f"{inv['qty']:g} billed at "
+                                                             f"{rupees(inv['rate_paise'])}",
+                variance=rupees(inv["amount_paise"], sign=True),
+                suggested_action="Hold the line. Pay only for what was ordered; "
+                                 "a genuine extra needs its own order.",
+                detail="An invoice line with no order behind it is how unapproved charges "
+                       "(freight, handling, 'misc') reach payment.",
+            ))
+            res.rules_cited.append("R11")
+
+        # R11, second half: billed more than was received, beyond R4's allowance.
+        # Only meaningful when there is a receipt; with none, R9 already holds.
+        if receipt is not None:
+            for code, inv in inv_items.items():
+                if code not in po_items:
+                    continue
+                grn = grn_items.get(code)
+                received = grn["qty"] if grn else Decimal(0)
+                over = inv["qty"] - received
+                limit = tol.qty_limit(received)
+                if over <= limit:
+                    continue
+                uom = po_items[code]["uom"]
+                res.exceptions.append(MatchException(
+                    type=ExceptionType.BILLED_OVER_RECEIVED, rule_id="R11", item_code=code,
+                    po_name=res.po_name, receipt_name=res.receipt_name,
+                    invoice_name=res.invoice_name,
+                    expected=f"at most {received:g} {uom} (received)",
+                    actual=f"{inv['qty']:g} {uom} billed",
+                    variance=f"{over:+g}",
+                    variance_pct=float(over / received * 100) if received else 100.0,
+                    tolerance=f"R4's allowance on the received quantity (= {limit:g})",
+                    suggested_action=(f"Pay for {received:g} at most. Ask the supplier for a "
+                                      "credit note or wait for the balance to be received."),
+                    detail="The invoice is checked against the goods receipt: paying for goods "
+                           "that have not arrived is the overpayment a three-way match exists "
+                           "to stop.",
+                ))
+                res.rules_cited.append("R11")
 
     res.rules_cited = sorted(set(res.rules_cited))
     return res

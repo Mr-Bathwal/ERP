@@ -343,13 +343,16 @@ def create_purchase_receipt(erp: Any, ctx: RunContext, *, po: Doc,
 @_timed
 def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
                             bill_no: str, rates: dict[str, float] | None = None,
-                            qty: dict[str, float] | None = None) -> tuple[Doc, ToolCall]:
-    """Record a Purchase Invoice, optionally at rates differing from the PO.
+                            qty: dict[str, float] | None = None,
+                            extra_lines: list[dict[str, Any]] | None = None,
+                            ) -> tuple[Doc, ToolCall]:
+    """Record a Purchase Invoice, optionally differing from the PO.
 
-    `rates` is how a price-variance scenario is expressed: the supplier
-    billed something other than what was agreed. The agent records what the
+    `rates`, `qty` and `extra_lines` are how variance scenarios are
+    expressed: the supplier billed something other than what was agreed,
+    more than arrived, or a line nobody ordered. The agent records what the
     supplier sent — it does not correct it — and `match.py` decides whether
-    the difference is inside R3.
+    the difference is inside R3 and R11.
     """
     fallback = {
         "doctype": "Purchase Invoice", "supplier": po.get("supplier"),
@@ -374,6 +377,10 @@ def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
             it["rate"] = float(rates[code])
         if qty and code in qty:
             it["qty"] = float(qty[code])
+    for extra in extra_lines or []:
+        payload.setdefault("items", []).append({
+            "item_code": extra["item_code"], "qty": float(extra.get("qty", 1)),
+            "rate": float(extra.get("rate", 0)), "uom": extra.get("uom", "Nos")})
 
     call = ToolCall(name="create_purchase_invoice",
                     args={"po": po.name, "bill_no": bill_no, "route": route})

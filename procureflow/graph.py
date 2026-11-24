@@ -79,6 +79,7 @@ class RunPlan:
     received_qty: dict[str, float] | None = None
     invoice_rates: dict[str, float] | None = None
     invoice_qty: dict[str, float] | None = None
+    invoice_extra_lines: list[dict[str, Any]] | None = None
     supplier_invoice_no: str = ""
     skip_receipt: bool = False
     force_supplier: str = ""
@@ -373,7 +374,8 @@ class Agent:
 
             inv, call = create_purchase_invoice(
                 self.erp, s.ctx, po=s.po, bill_no=bill_no,
-                rates=s.plan.invoice_rates, qty=s.plan.invoice_qty)
+                rates=s.plan.invoice_rates, qty=s.plan.invoice_qty,
+                extra_lines=s.plan.invoice_extra_lines)
             st.tool_calls.append({"kind": "erp", **call.__dict__})
             s.invoice = inv
             tr.invoice_name = inv.name

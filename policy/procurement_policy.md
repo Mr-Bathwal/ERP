@@ -1,6 +1,6 @@
 # Procurement Policy — ProcureFlow Demo Pvt Ltd
 
-**Version 1.3** · Effective 2026-04-01 · Owner: Head of Supply Chain
+**Version 1.4** · Effective 2026-11-24 · Owner: Head of Supply Chain
 **Applies to:** all indirect and raw-material purchasing routed through ERPNext.
 
 This document is the process. ProcureFlow holds no thresholds in code — the
@@ -168,6 +168,26 @@ raised by a buyer by hand.
 
 ---
 
+## R11 — Billed quantity and unordered lines
+
+An invoice may bill an item for **at most the quantity received**, within the
+same allowance R4 gives a receipt. Beyond that the line is
+`billed_over_received` and payment for it is held. An invoice line for an
+item that is **not on the Purchase Order** is `unordered_line` and is held.
+
+> **Why a third leg.** R3 compares the invoice with the order and R4 compares
+> the receipt with the order. Neither compares the invoice with the receipt,
+> so a supplier who ships 45 of 60 and bills 60 raised a delivery exception
+> and nothing said the bill itself was wrong. A line nobody ordered —
+> freight, handling, "miscellaneous" — was not compared with anything at
+> all. Paying for goods that did not arrive, and for charges nobody
+> approved, is exactly the loss a three-way match exists to prevent.
+
+**Evaluated on:** Purchase Invoice item `qty` against Purchase Receipt item
+`qty`, per item; and every Purchase Invoice item against the Purchase Order.
+
+---
+
 ## Rule summary
 
 | Rule | Subject | Threshold | Effect when breached |
@@ -182,3 +202,4 @@ raised by a buyer by hand.
 | R8 | Authority | — | never automatic |
 | R9 | Missing receipt | no receipt for invoice | `missing_receipt`, hold |
 | R10 | Run ceiling | > ₹5,00,000 | stop, raise by hand |
+| R11 | Billed vs received | R4 allowance on receipt | `billed_over_received` / `unordered_line`, hold |

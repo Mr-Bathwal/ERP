@@ -1,10 +1,14 @@
 name: partial_receipt_qty_short
 input: seed/samples/req-short-delivery.txt
-why: 45 of 60 arrived. Quantity is checked against the receipt, not the invoice.
+why: >
+  45 of 60 arrived and the supplier billed 60. Two different things are wrong:
+  the delivery is short (R4, receipt against order) and the bill asks for 15
+  rods that never arrived (R11, invoice against receipt). Until v3 the match
+  had no invoice-against-receipt leg and reported only the first.
 approve: true   # Rs74,400 is over the R1 ceiling
 plan:
   received_qty: {STL-ROD-20: 45}
 expect:
   state: completed_with_exceptions
-  exceptions: [qty_short]
-  rules_cited: [R4]
+  exceptions: [qty_short, billed_over_received]
+  rules_cited: [R4, R11]

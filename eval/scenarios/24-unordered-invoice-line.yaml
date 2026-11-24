@@ -1,0 +1,13 @@
+name: unordered_invoice_line
+input: seed/samples/req-happy.txt
+why: >
+  The supplier adds a line nobody ordered (nitrile gloves) to an otherwise
+  clean invoice. v2 walked the order's items, never the invoice's, so the
+  extra line reached payment without being compared with anything.
+plan:
+  invoice_extra_lines:
+    - {item_code: CON-GLV-NIT, qty: 100, rate: 28}
+expect:
+  state: completed_with_exceptions
+  exceptions: [unordered_line]
+  rules_cited: [R11]

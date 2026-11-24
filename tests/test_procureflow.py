@@ -269,9 +269,17 @@ def test_an_empty_invoice_number_never_matches_anything():
 # ---------------------------------------------------------------------------
 
 def test_every_rule_in_the_policy_parses():
+    """Every heading is a rule, numbered without gaps, and each has a summary row."""
+    import re
     rules = parse_policy()
-    assert [r.rule_id for r in rules] == [f"R{i}" for i in range(1, 11)]
+    ids = [r.rule_id for r in rules]
+    assert ids == [f"R{i}" for i in range(1, len(ids) + 1)]
+    assert len(ids) >= 11
     assert all(r.title and r.text for r in rules)
+    text = (ROOT / "policy" / "procurement_policy.md").read_text(encoding="utf-8")
+    table = re.findall(r"^\|\s*(R\d+)\s*\|", text, re.MULTILINE)
+    assert table == ids, "a rule without a summary row, or a row without a rule"
+    assert all(r.threshold for r in rules)
 
 
 def test_the_shipped_policy_still_yields_its_documented_thresholds():

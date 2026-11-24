@@ -144,3 +144,51 @@ def test_the_happy_path_still_routes_through_the_mappers(erp, policy):
     s, _ = Agent(erp, policy=policy).run(sample("req-happy.txt"), today=TODAY)
     assert s.state is RunState.COMPLETED
     assert sum(1 for kind, _, _ in erp.calls if kind == "method") == 3
+
+
+# ---------------------------------------------------------------------------
+# R11: the third leg -- the invoice against the receipt
+# ---------------------------------------------------------------------------
+
+
+def _d(name, rows):
+    from procureflow.erp.client import Doc
+    return Doc("X", name, {"name": name, "items": [
+        {"item_code": c, "qty": q, "rate": r, "uom": "Nos"} for c, q, r in rows]})
+
+
+def test_billing_more_than_arrived_is_caught_even_when_delivery_matches_the_order():
+    res = three_way_match(_d("PO", [("A", 60, 100)]), _d("GRN", [("A", 60, 100)]),
+                          _d("INV", [("A", 70, 100)]))
+    assert [e.type.value for e in res.exceptions] == ["billed_over_received"]
+    assert res.rules_cited == ["R11"]
+
+
+def test_a_short_delivery_billed_in_full_raises_both_the_delivery_and_the_bill():
+    res = three_way_match(_d("PO", [("A", 60, 100)]), _d("GRN", [("A", 45, 100)]),
+                          _d("INV", [("A", 60, 100)]))
+    assert res.types == {"qty_short", "billed_over_received"}
+
+
+def test_billing_inside_the_receipt_allowance_is_not_an_exception():
+    """59 counted, 60 billed: inside R4's allowance, a counting artefact."""
+    res = three_way_match(_d("PO", [("A", 60, 100)]), _d("GRN", [("A", 59, 100)]),
+                          _d("INV", [("A", 60, 100)]))
+    assert res.matched
+
+
+def test_billing_less_than_received_is_never_an_exception():
+    res = three_way_match(_d("PO", [("A", 60, 100)]), _d("GRN", [("A", 60, 100)]),
+                          _d("INV", [("A", 30, 100)]))
+    assert res.matched
+
+
+def test_an_invoice_line_nobody_ordered_is_held():
+    res = three_way_match(_d("PO", [("A", 10, 100)]), _d("GRN", [("A", 10, 100)]),
+                          _d("INV", [("A", 10, 100), ("FREIGHT", 1, 2500)]))
+    assert [(e.type.value, e.item_code) for e in res.exceptions] == [("unordered_line", "FREIGHT")]
+
+
+def test_with_no_receipt_r9_holds_and_r11_does_not_double_count():
+    res = three_way_match(_d("PO", [("A", 10, 100)]), None, _d("INV", [("A", 10, 100)]))
+    assert res.types == {"missing_receipt"}
