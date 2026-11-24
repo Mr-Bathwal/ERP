@@ -234,8 +234,15 @@ mapper paths, `net_total` versus `total`, rounding, and whether
 4. **Least-privilege ERPNext roles** per stage (buyer, stores, ap), an SoD
    matrix test, and an Authorization Rule at R10. The documented setup still
    uses Administrator keys.
-5. **Deploy the dashboard.** GitHub Pages from `/dashboard` is a repo setting
-   Gourav must switch on. After that, the CV header may say "Live".
+5. **Deploy the dashboard.** `vercel.json` at the root is written and
+   committed: framework none, output directory `dashboard`, clean URLs, and
+   `must-revalidate` on html/css/js/json because none of those filenames are
+   content-hashed and a cached `results-v3.json` would show last week's
+   numbers. All that is left is the one-time import at
+   vercel.com/new (Add New > Project > import `Mr-Bathwal/ERP` > Deploy),
+   which is Gourav's own account and so his click; every later push to `main`
+   then deploys itself. GitHub Pages from `/dashboard` still works as a
+   fallback and is a repo setting. After either, the CV header may say "Live".
 6. **Demo video.** The shot list is in the brief §4 Phase 6.6. After that,
    the CV header may say "Demo".
 7. **Pin the repo** on Gourav's GitHub profile (his action).
