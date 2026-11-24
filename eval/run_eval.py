@@ -55,6 +55,10 @@ from procureflow.tracing import export_json, percentile  # noqa: E402
 SCENARIOS = ROOT / "eval" / "scenarios"
 RESULTS = ROOT / "eval" / "results"
 TODAY = date(2026, 11, 24)        # fixed, so expedite and date rules are stable
+# The identity that submits every scenario document. R12 needs a known
+# requester to show segregation of duties; the harness is that requester,
+# and it is in nobody's delegation-of-authority row.
+HARNESS = "eval-harness"
 
 
 @dataclass
@@ -237,20 +241,21 @@ def run_one(sc: dict[str, Any], *, live: bool, policy: PolicyIndex) -> Outcome:
                            "supplier_invoice_no": sc.get("first_bill_no")
                            or plan.supplier_invoice_no})
         agent.run(sc["input"], scenario=sc["name"] + "/first", plan=first,
-                  approve=True, approver=sc.get("approver", ""), today=TODAY)
+                  approve=True, approver=sc.get("approver", ""),
+                  submitted_by=HARNESS, today=TODAY)
 
     # History the scenario needs to exist first, e.g. the earlier half of a
     # split order (R15). Each runs to completion in the same ERP.
     for k, prior in enumerate(sc.get("before") or []):
         agent.run(prior["input"], scenario=f"{sc['name']}/before-{k + 1}",
                   plan=RunPlan(**(prior.get("plan") or {})), approve=prior.get("approve"),
-                  approver=prior.get("approver", ""), today=TODAY)
+                  approver=prior.get("approver", ""), submitted_by=HARNESS, today=TODAY)
 
     t0 = time.perf_counter()
     s, tr = agent.run(sc["input"], scenario=sc["name"], plan=plan,
                       dry_run=bool(sc.get("dry_run")),
                       approve=sc.get("approve"), approver=sc.get("approver", ""),
-                      today=TODAY)
+                      submitted_by=HARNESS, today=TODAY)
 
     # Two-process approval, in one process: the run pauses, the world may
     # change while it waits (`tamper`, applied straight to the stored draft

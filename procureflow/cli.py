@@ -28,6 +28,15 @@ from .policy_rag import PolicyIndex
 from .tools import describe_permissions
 
 
+def _login() -> str:
+    """The operating-system account running the command: R12's submitter."""
+    import getpass
+    try:
+        return getpass.getuser()
+    except Exception:                                            # noqa: BLE001
+        return ""
+
+
 def _erp(live: bool):
     if not live:
         return demo_company()
@@ -72,7 +81,8 @@ def cmd_run(a: argparse.Namespace) -> int:
     plan = RunPlan(supplier_invoice_no=a.bill_no or "")
     s, tr = agent.run(a.file, scenario=a.scenario, dry_run=a.dry_run,
                       receipt_mode=a.mode, plan=plan,
-                      approve=True if a.yes else None, approver=a.approver)
+                      approve=True if a.yes else None, approver=a.approver,
+                      submitted_by=a.requester or _login())
     _show(s, tr)
     if s.state is RunState.AWAITING_APPROVAL:
         # Against a real ERPNext the draft order is on the server and
@@ -151,6 +161,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--live", action="store_true", help="use the real ERPNext")
     r.add_argument("--dry-run", action="store_true", help="write nothing")
     r.add_argument("--yes", action="store_true", help="pre-approve the gate")
+    r.add_argument("--requester", default="",
+                   help="who is submitting the document (default: the logged-in user)")
     r.add_argument("--as", dest="approver", default="",
                    help="with --yes: the approver id giving that approval (R12)")
     r.add_argument("--mode", choices=["api", "computer_use"], default="api")

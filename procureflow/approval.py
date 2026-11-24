@@ -62,14 +62,26 @@ def _person(name: str | None) -> str:
 
 
 def check_approval(*, approver_id: str, approvers: tuple[Approver, ...],
-                   value_paise: int, requester: str | None) -> tuple[Approver | None, str]:
-    """Return the approver and the reason the approval is not valid ('' if it is)."""
+                   value_paise: int, requesters: list[str | None]) -> tuple[Approver | None, str]:
+    """Return the approver and the reason the approval is not valid ('' if it is).
+
+    `requesters` are every identity that can stand for the person asking: the
+    sign-off read from the document and the authenticated identity that
+    submitted it. The sign-off alone is forgeable -- or simply absent, and an
+    absent requester used to skip the segregation check altogether. So the
+    check fails closed: with no known requester at all, segregation cannot be
+    shown, and the approval is not accepted.
+    """
     if not approver_id:
         return None, "the approval does not name its approver"
     ap = next((a for a in approvers if a.approver_id == approver_id), None)
     if ap is None:
         return None, f"{approver_id!r} is not in the delegation-of-authority table"
-    if requester and _person(ap.name) == _person(requester):
+    known = [r for r in requesters if r]
+    if not known:
+        return ap, ("the requester is unknown, so segregation of duties cannot be checked; "
+                    "the run must be submitted by an identified person")
+    if any(_person(ap.name) == _person(r) or ap.approver_id == r for r in known):
         return ap, (f"{ap.name} raised this request and may not approve it "
                     "(segregation of duties)")
     if value_paise > ap.limit_paise:

@@ -50,7 +50,14 @@ from .match import (
     rupees,
     three_way_match,
 )
-from .policy_rag import PolicyIndex, PolicyNumbers, read_numbers
+from .policy_rag import (
+    PolicyError,
+    PolicyIndex,
+    PolicyNumbers,
+    fingerprint,
+    read_numbers,
+    verify_numbers,
+)
 from .tools import (
     ToolRefused,
     booked_invoices,
@@ -108,6 +115,9 @@ class State:
     approver: str = ""                       # R12: who said yes, by approver id
     approval_snapshot: dict[str, Any] = field(default_factory=dict)
     approval_digest: str = ""                # R12: what they said yes *to*
+    submitted_by: str = ""                   # R12: who put the document in, authenticated
+    policy_version: str = ""                 # pinned at the start of the run
+    policy_sha256: str = ""
     expedite: bool = False
     substitution: str = ""
 
@@ -149,6 +159,14 @@ class Agent:
         self.erp = erp
         self.policy = policy or PolicyIndex()
         self.numbers = numbers or read_numbers(self.policy.rules)
+        # Fail closed. read_numbers falls back to documented defaults when a
+        # sentence is reworded, which is right for a parser and wrong for a
+        # control: a reworded policy must stop the agent, not silently run it
+        # on thresholds held in code.
+        if numbers is None and (bad := verify_numbers(self.numbers)):
+            raise PolicyError("the policy did not parse cleanly: " + "; ".join(bad))
+        self.policy_version = getattr(self.policy, "version", "custom")
+        self.policy_sha256 = getattr(self.policy, "sha256", "") or fingerprint(self.policy.rules)
         self.trace_db = trace_db
         self.model = model
         self.tol = Tolerances(
@@ -434,7 +452,8 @@ class Agent:
             value = max(s.po_value_paise, s.approval_snapshot.get("grand_total_paise", 0))
             who, problem = approval.check_approval(
                 approver_id=s.approver, approvers=self.numbers.approvers,
-                value_paise=value, requester=s.request.requester if s.request else None)
+                value_paise=value,
+                requesters=[s.request.requester if s.request else None, s.submitted_by])
             if problem:
                 # Not a rejection: the order is still waiting for a valid "yes".
                 s.approved = None
@@ -604,7 +623,8 @@ class Agent:
     def run(self, source: str | Path, *, scenario: str = "", dry_run: bool = False,
             receipt_mode: Literal["api", "computer_use"] = "api",
             plan: RunPlan | None = None, approve: bool | None = None,
-            approver: str = "", today: date | None = None) -> tuple[State, Tracer]:
+            approver: str = "", submitted_by: str = "",
+            today: date | None = None) -> tuple[State, Tracer]:
         """Execute the flow start to finish, or until it stops on purpose.
 
         `approve` pre-seeds the gate's answer so the eval can drive both
@@ -620,8 +640,11 @@ class Agent:
         )
         s.approved = approve
         s.approver = approver
+        s.submitted_by = submitted_by
+        s.policy_version, s.policy_sha256 = self.policy_version, self.policy_sha256
         tr = Tracer(self.trace_db, run_id=s.ctx.run_id, source_file=str(source),
                     scenario=scenario, dry_run=dry_run, receipt_mode=receipt_mode)
+        tr.policy_version, tr.policy_sha256 = s.policy_version, s.policy_sha256
         return self._drive(s, tr)
 
     def _stages(self) -> tuple:
@@ -684,6 +707,18 @@ class Agent:
         An approval that R12 does not accept leaves the run where it was,
         `awaiting_approval`, so a valid approver can still give it.
         """
+        if s.policy_sha256 and s.policy_sha256 != self.policy_sha256:
+            # The run was gated under one rulebook and would finish under
+            # another. Neither the approval nor the earlier checks can be
+            # assumed to hold, so a person decides (R8).
+            s.state = RunState.NEEDS_HUMAN
+            s.reason = (f"R8: the policy changed while this run was paused (version "
+                        f"{s.policy_version} {s.policy_sha256[:12]} -> {self.policy_version} "
+                        f"{self.policy_sha256[:12]}); re-run it under the current policy")
+            s.cite("R8", "stopped", s.reason)
+            tr.rules_cited = s.rules
+            tr.finish(s.state.value, s.reason)
+            return s, tr
         s.approved = approved
         s.approver = approver
         s.approver_note = note

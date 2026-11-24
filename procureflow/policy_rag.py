@@ -87,6 +87,30 @@ def parse_policy(path: Path | None = None) -> list[Rule]:
     return rules
 
 
+def policy_version(path: Path | None = None) -> str:
+    """The `**Version x.y**` the policy owner stamped on the document."""
+    text = (path or POLICY_PATH).read_text(encoding="utf-8")
+    m = re.search(r"\*\*Version\s+([\d.]+)\*\*", text)
+    return m.group(1) if m else "unversioned"
+
+
+def fingerprint(rules: list[Rule]) -> str:
+    """SHA-256 of the rules the engine actually runs on.
+
+    Hashed from the parsed rules rather than the file bytes, so a change to
+    whitespace or line endings is not a policy change but any change to a
+    rule's text, title or threshold is.
+    """
+    import hashlib
+    blob = "\n".join(r.rule_id + "|" + r.title + "|" + r.threshold + "|" + " ".join(r.text.split())
+                     for r in rules)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+class PolicyError(RuntimeError):
+    """The policy did not parse into the numbers the engine needs. Fail closed."""
+
+
 class PolicyIndex:
     """Vector index over the policy, with a deterministic fallback.
 
@@ -99,7 +123,9 @@ class PolicyIndex:
     """
 
     def __init__(self, rules: list[Rule] | None = None, *, prefer_vectors: bool = True) -> None:
+        self.version = policy_version() if rules is None else "custom"
         self.rules = rules if rules is not None else parse_policy()
+        self.sha256 = fingerprint(self.rules)
         self._by_id = {r.rule_id: r for r in self.rules}
         self.backend = "lexical"
         self._collection = None

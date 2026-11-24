@@ -156,6 +156,8 @@ class Tracer:
         self.exceptions: list[str] = []
         self.rules_cited: list[str] = []
         self.llm_calls = 0
+        self.policy_version = ""
+        self.policy_sha256 = ""
 
     @contextmanager
     def step(self, node: str) -> Iterator[Step]:

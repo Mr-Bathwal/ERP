@@ -297,8 +297,9 @@ def test_the_delegation_of_authority_table_is_read_from_the_policy():
 
 
 @pytest.mark.parametrize("approver,requester,value,problem", [
-    ("", None, 7_440_000, "does not name"),
-    ("ceo", None, 7_440_000, "not in the delegation"),
+    ("", "R. Iyer", 7_440_000, "does not name"),
+    ("proc.manager", None, 7_440_000, "requester is unknown"),
+    ("ceo", "R. Iyer", 7_440_000, "not in the delegation"),
     ("planning.lead", "R. Iyer", 7_440_000, "segregation of duties"),
     ("planning.lead", "r iyer", 7_440_000, "segregation of duties"),
     ("proc.manager", "J. Fernandes", 22_380_000, "exceeds"),
@@ -307,7 +308,7 @@ def test_the_delegation_of_authority_table_is_read_from_the_policy():
 ])
 def test_an_approval_is_checked_for_authority_and_segregation(approver, requester, value, problem):
     _, why = appr.check_approval(approver_id=approver, approvers=read_numbers().approvers,
-                                 value_paise=value, requester=requester)
+                                 value_paise=value, requesters=[requester])
     assert (problem in why) if problem else why == ""
 
 
@@ -702,3 +703,77 @@ def test_a_generated_invoice_number_says_it_was_generated(agent):
     assert s.invoice.get("bill_no").startswith("SIM-")
     step = next(x for x in tr.steps if x.node == "create_purchase_invoice")
     assert any(c.get("name") == "simulated_invoice" for c in step.tool_calls)
+
+
+# ---------------------------------------------------------------------------
+# Fail closed: a reworded policy, a policy changed mid-pause, a kill switch,
+# an unknown requester, a server that swaps lines but keeps the total
+# ---------------------------------------------------------------------------
+
+
+def test_a_policy_that_does_not_parse_stops_the_agent_from_starting(erp):
+    from procureflow.policy_rag import PolicyError, PolicyIndex, parse_policy
+    rules = [r for r in parse_policy() if r.rule_id != "R12"]       # no authority table
+    with pytest.raises(PolicyError, match="R12"):
+        Agent(erp, policy=PolicyIndex(rules, prefer_vectors=False))
+
+
+def test_a_run_paused_under_one_policy_does_not_finish_under_another(erp, policy):
+    from procureflow.policy_rag import PolicyIndex, parse_policy
+    s, tr = Agent(erp, policy=policy).run(sample("req-over-threshold.txt"), today=TODAY)
+    assert s.state is RunState.AWAITING_APPROVAL and s.policy_sha256
+    edited = parse_policy()
+    edited[0].text = edited[0].text.replace("₹50,000", "₹40,000")
+    later = Agent(erp, policy=PolicyIndex(edited, prefer_vectors=False))
+    s2, _ = later.resume(s, tr, approved=True, approver="proc.manager")
+    assert s2.state is RunState.NEEDS_HUMAN and "policy changed" in s2.reason
+    assert erp.docs["Purchase Order"][s.po.name]["docstatus"] == 0
+
+
+def test_the_kill_switch_refuses_every_write(agent, erp, monkeypatch):
+    monkeypatch.setenv("PROCUREFLOW_WRITES", "off")
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.BLOCKED and "switched off" in s.reason
+    assert not erp.docs.get("Material Request")
+
+
+def test_with_no_known_requester_an_approval_cannot_show_segregation(agent):
+    """A quote PDF has no sign-off; submitted with no identity, nobody may approve it."""
+    s, _ = agent.run(sample("quote-deccan-multi.pdf"), approve=True, approver="proc.manager",
+                     today=TODAY)
+    assert s.state is RunState.AWAITING_APPROVAL and "requester is unknown" in s.reason
+    s2, _ = agent.run(sample("quote-deccan-multi.pdf"), approve=True, approver="proc.manager",
+                      submitted_by="k.rao", today=TODAY)
+    assert s2.state is not RunState.AWAITING_APPROVAL
+
+
+def test_a_submitter_cannot_approve_their_own_submission(agent):
+    s, _ = agent.run(sample("quote-deccan-multi.pdf"), approve=True, approver="proc.manager",
+                     submitted_by="proc.manager", today=TODAY)
+    assert "segregation of duties" in s.reason
+
+
+def test_a_server_that_swaps_lines_but_keeps_the_total_is_caught(agent, erp):
+    original = erp._derive
+
+    def swapping(doctype, payload):
+        row = original(doctype, payload)
+        if doctype == "Purchase Order" and len(row["items"]) == 2:
+            a, b = row["items"]
+            a["qty"], b["qty"] = b["qty"], a["qty"]        # 200 bolts, 500 washers
+            a["rate"], b["rate"] = b["rate"], a["rate"]
+            a["item_code"], b["item_code"] = a["item_code"], a["item_code"]
+        return row
+
+    erp._derive = swapping
+    s, _ = agent.run(sample("req-happy.txt"), today=TODAY)
+    assert s.state is RunState.NEEDS_HUMAN and "stored lines" in s.reason
+
+
+def test_an_invented_requester_is_ungrounded():
+    from procureflow.config import PurchaseRequest, RequestLine
+    req = PurchaseRequest(supplier="Bharat Fasteners Pvt Ltd", requester="V. Shah",
+                          items=[RequestLine(description="Hex bolt M8x40", qty=500, rate=12)])
+    bad = scr.ground(req, "Bharat Fasteners Pvt Ltd: 500 nos Hex bolt M8x40 @ 12.00\nR. Iyer",
+                     dates_in_text=set())
+    assert any("requester" in b for b in bad)

@@ -144,6 +144,8 @@ rules permit:
 - `R6` unknown supplier
 - any run where extraction returned `needs_human`
 - any run where read-back verification failed
+- a paused run whose policy changed before it resumed
+- any write while writes are switched off (`PROCUREFLOW_WRITES=off`)
 
 > **Why this list is separate.** Every other rule asks whether a document is
 > *correct*. These ask whether proceeding is *allowed at all* — a question of

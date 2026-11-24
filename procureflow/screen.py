@@ -256,6 +256,9 @@ def ground(req: Any, text: str, *, dates_in_text: set[str]) -> list[str]:
             bad.append(f"line {i} quantity {line.qty:g}")
         if line.rate is not None and dec(line.rate) not in nums:
             bad.append(f"line {i} rate {line.rate:g}")
+    req_by = getattr(req, "requester", None)
+    if req_by and " ".join(_tokens(req_by)) not in flat:
+        bad.append(f"requester {req_by!r}")
     if req.needed_by and req.needed_by not in dates_in_text:
         bad.append(f"needed-by date {req.needed_by}")
     if req.supplier_invoice_no and (normalise_invoice_no(req.supplier_invoice_no)

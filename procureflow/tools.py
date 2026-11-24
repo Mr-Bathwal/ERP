@@ -42,7 +42,7 @@ from .erp.client import (
     VerificationError,
     _compare,
 )
-from .match import line_paise, paise, rupees
+from .match import dec, line_paise, paise, rupees
 
 
 @dataclass
@@ -155,6 +155,22 @@ def booked_invoices(erp: Any, supplier: str) -> list[dict[str, Any]]:
 # Exactly-once writes
 # ---------------------------------------------------------------------------
 
+def writes_enabled() -> bool:
+    """The kill switch. `PROCUREFLOW_WRITES=off` refuses every ERP write.
+
+    Read at call time, not import time, so an operator can stop a running
+    service by changing its environment and restarting nothing else.
+    """
+    import os
+    return os.getenv("PROCUREFLOW_WRITES", "on").strip().lower() not in ("off", "0", "false")
+
+
+def _guard_writes(ctx: RunContext) -> None:
+    if not ctx.dry_run and not writes_enabled():
+        raise ToolRefused("writes are switched off (PROCUREFLOW_WRITES=off); nothing was "
+                          "written", rule_id="R8")
+
+
 def idempotency_key(ctx: RunContext, step: str) -> str:
     """One key per run and step: the same request always carries the same key."""
     return f"pf-{ctx.run_id}-{step}"
@@ -253,6 +269,7 @@ def create_material_request(erp: Any, ctx: RunContext, *, supplier: str,
     legitimately re-express a UOM and the comparison needs the conversion
     factor to be meaningful.
     """
+    _guard_writes(ctx)
     if "Material Request" not in ALLOWED_WRITE:                  # pragma: no cover
         raise ToolRefused("Material Request is not writable by this application")
 
@@ -292,6 +309,7 @@ def create_material_request(erp: Any, ctx: RunContext, *, supplier: str,
 @_timed
 def submit_doc(erp: Any, ctx: RunContext, doctype: str, name: str) -> tuple[Doc, ToolCall]:
     """Submit a document and confirm docstatus is 1."""
+    _guard_writes(ctx)
     call = ToolCall(name="submit_doc", args={"doctype": doctype, "name": name})
     if ctx.dry_run:
         call.result = "skipped (dry run)"
@@ -333,6 +351,7 @@ def create_purchase_order(erp: Any, ctx: RunContext, *, mr: Doc, supplier: str,
     that morning is not a defence against a quantity misread by three orders
     of magnitude.
     """
+    _guard_writes(ctx)
     fallback = {
         "doctype": "Purchase Order", "supplier": supplier,
         "schedule_date": schedule_date, "material_request": mr.name,
@@ -393,6 +412,16 @@ def create_purchase_order(erp: Any, ctx: RunContext, *, mr: Doc, supplier: str,
         raise VerificationError(
             f"Purchase Order {doc.name} stored a total of {rupees(stored)}; "
             f"{rupees(total_p)} was sent", doctype="Purchase Order")
+    sent_lines = sorted((str(i.get("item_code")), dec(i.get("qty")).normalize())
+                        for i in payload.get("items") or [])
+    kept_lines = sorted((str(i.get("item_code")), dec(i.get("qty")).normalize())
+                        for i in doc.items)
+    if sent_lines != kept_lines:
+        # Same total, different lines (a swap, a UOM conversion) passes a
+        # total check; it does not pass this one.
+        raise VerificationError(
+            f"Purchase Order {doc.name} stored lines {kept_lines}; {sent_lines} were sent",
+            doctype="Purchase Order")
     if stored > ceiling_paise:
         raise ToolRefused(f"R10: Purchase Order {doc.name} was stored at {rupees(stored)}, "
                           f"above the {rupees(ceiling_paise)} ceiling. It stays a draft; "
@@ -412,6 +441,7 @@ def create_purchase_receipt(erp: Any, ctx: RunContext, *, po: Doc,
     receipt is a first-class case rather than an error path: it is the input
     that makes the three-way match worth running at all.
     """
+    _guard_writes(ctx)
     fallback = {
         "doctype": "Purchase Receipt", "supplier": po.get("supplier"),
         "purchase_order": po.name,
@@ -470,6 +500,7 @@ def create_purchase_invoice(erp: Any, ctx: RunContext, *, po: Doc,
     supplier sent — it does not correct it — and `match.py` decides whether
     the difference is inside R3 and R11.
     """
+    _guard_writes(ctx)
     fallback = {
         "doctype": "Purchase Invoice", "supplier": po.get("supplier"),
         "purchase_order": po.name,
