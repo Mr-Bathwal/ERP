@@ -426,6 +426,8 @@ def main() -> int:
     ap.add_argument("--check-baseline", action="store_true",
                     help="fail if any scenario's outcome, writes or steps differ from "
                          "eval/baseline.json (CI)")
+    ap.add_argument("--overwrite", action="store_true",
+                    help="replace an existing results-<tag>.json (records are write-once)")
     ap.add_argument("--write-baseline", action="store_true",
                     help="record this run as the new eval/baseline.json")
     args = ap.parse_args()
@@ -435,6 +437,15 @@ def main() -> int:
         return 2
 
     RESULTS.mkdir(parents=True, exist_ok=True)
+    # A tagged result is a record of what a version of the code did. v2's
+    # results-v1.json was silently replaced by a later run that reused the
+    # tag, so the README's 79.2% stood next to a file saying 100%. A tag is
+    # now written once; scratch tags (ci, scratch, live) may be reused.
+    tagged = RESULTS / f"results-{args.tag}.json"
+    if tagged.exists() and args.tag not in ("ci", "scratch", "live") and not args.overwrite:
+        print(f"{tagged.name} already exists; pick a new --tag or pass --overwrite",
+              file=sys.stderr)
+        return 2
     EVAL_TRACES.unlink(missing_ok=True)
     policy = PolicyIndex()
     scenarios = [s for s in _load() if args.only in s.get("name", "")]
